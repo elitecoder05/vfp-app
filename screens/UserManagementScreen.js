@@ -6,28 +6,37 @@ import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
 const PAGE_SIZE = 10;
 
 const USER_ROWS = [
-  { id: '1',  name: 'User 1',  contact: '1234567801' },
-  { id: '2',  name: 'User 2',  contact: '1234567802' },
-  { id: '3',  name: 'User 3',  contact: '1234567803' },
-  { id: '4',  name: 'User 4',  contact: '1234567804' },
-  { id: '5',  name: 'User 5',  contact: '1234567805' },
-  { id: '6',  name: 'User 6',  contact: '1234567806' },
-  { id: '7',  name: 'User 7',  contact: '1234567807' },
-  { id: '8',  name: 'User 8',  contact: '1234567808' },
-  { id: '9',  name: 'User 9',  contact: '1234567809' },
-  { id: '10', name: 'User 10', contact: '1234567810' },
-  { id: '11', name: 'User 11', contact: '1234567811' },
-  { id: '12', name: 'User 12', contact: '1234567812' },
-  { id: '13', name: 'User 13', contact: '1234567813' },
-  { id: '14', name: 'User 14', contact: '1234567814' },
-  { id: '15', name: 'User 15', contact: '1234567815' },
-  { id: '16', name: 'User 16', contact: '1234567816' },
-  { id: '17', name: 'User 17', contact: '1234567817' },
-  { id: '18', name: 'User 18', contact: '1234567818' },
-  { id: '19', name: 'User 19', contact: '1234567819' },
-  { id: '20', name: 'User 20', contact: '1234567820' },
-  { id: '21', name: 'User 21', contact: '1234567821' },
+  { id: '1', name: 'User 1', contact: '1234567801', role: 'None', permission: 'Read Only' },
+  { id: '2', name: 'User 2', contact: '1234567802', role: 'None', permission: 'Full Access' },
+  { id: '3', name: 'User 3', contact: '1234567803', role: 'None', permission: 'Full Access' },
+  { id: '4', name: 'User 4', contact: '1234567804', role: 'None', permission: 'Read Only' },
+  { id: '5', name: 'User 5', contact: '1234567805', role: 'None', permission: 'Read Only' },
+  { id: '6', name: 'User 6', contact: '1234567806', role: 'None', permission: 'Read Only' },
+  { id: '7', name: 'User 7', contact: '1234567807', role: 'None', permission: 'Read Only' },
+  { id: '8', name: 'User 8', contact: '1234567808', role: 'None', permission: 'Read Only' },
+  { id: '9', name: 'User 9', contact: '1234567809', role: 'Manager', permission: 'Full Access' },
+  { id: '10', name: 'User 10', contact: '1234567810', role: 'None', permission: 'Read Only' },
+  { id: '11', name: 'User 11', contact: '1234567811', role: 'Supervisor', permission: 'Full Access' },
+  { id: '12', name: 'User 12', contact: '1234567812', role: 'None', permission: 'Read Only' },
+  { id: '13', name: 'User 13', contact: '1234567813', role: 'None', permission: 'Read Only' },
+  { id: '14', name: 'User 14', contact: '1234567814', role: 'Admin', permission: 'Full Access' },
+  { id: '15', name: 'User 15', contact: '1234567815', role: 'None', permission: 'Read Only' },
+  { id: '16', name: 'User 16', contact: '1234567816', role: 'Manager', permission: 'Full Access' },
+  { id: '17', name: 'User 17', contact: '1234567817', role: 'None', permission: 'Read Only' },
+  { id: '18', name: 'User 18', contact: '1234567818', role: 'None', permission: 'Read Only' },
+  { id: '19', name: 'User 19', contact: '1234567819', role: 'Supervisor', permission: 'Full Access' },
+  { id: '20', name: 'User 20', contact: '1234567820', role: 'None', permission: 'Read Only' },
+  { id: '21', name: 'User 21', contact: '1234567821', role: 'None', permission: 'Read Only' },
 ];
+
+function PermissionBadge({ permission }) {
+  const fullAccess = permission === 'Full Access';
+  return (
+    <View style={[styles.badge, fullAccess ? styles.badgeFull : styles.badgeRead]}>
+      <Text style={[styles.badgeText, fullAccess ? styles.badgeTextFull : styles.badgeTextRead]}>{permission}</Text>
+    </View>
+  );
+}
 
 export default function UserManagementScreen() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,33 +67,46 @@ export default function UserManagementScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContent}>
-          <Text style={styles.screenTitle}>Users</Text>
-          <Text style={styles.screenSubtitle}>
-            Manage users, roles, and permissions for your organization.
-          </Text>
-
-          <TouchableOpacity style={styles.addButton} activeOpacity={0.85}>
-            <MaterialCommunityIcons name="plus" size={18} color={COLORS.white} />
-            <Text style={styles.addButtonText}>Add User</Text>
-          </TouchableOpacity>
-
-          <View style={styles.tableCard}>
-            <View style={styles.tableHeaderRow}>
-              <Text style={styles.tableHeaderCell}>Name</Text>
+          <View style={styles.titleRow}>
+            <View style={styles.titleGroup}>
+              <Text style={styles.screenTitle}>Users</Text>
+              <Text style={styles.screenSubtitle}>Manage users, roles, and permissions for your organization.</Text>
             </View>
+            <TouchableOpacity style={styles.addButton} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="plus" size={17} color={COLORS.white} />
+              <Text style={styles.addButtonText}>Add User</Text>
+            </TouchableOpacity>
+          </View>
 
+          <View style={styles.cardList}>
             {pageRows.map((row) => (
-              <View key={row.id} style={styles.tableBodyRow}>
-                <View style={styles.avatarContainer}>
-                  <MaterialCommunityIcons
-                    name="account-outline"
-                    size={22}
-                    color={COLORS.gray600}
-                  />
+              <View key={row.id} style={styles.card}>
+                <View style={styles.cardTopRow}>
+                  <View style={styles.userWrap}>
+                    <View style={styles.avatarContainer}>
+                      <MaterialCommunityIcons name="account-outline" size={22} color={COLORS.gray600} />
+                    </View>
+                    <View style={styles.rowTextGroup}>
+                      <Text style={styles.rowName}>{row.name}</Text>
+                      <View style={styles.phoneRow}>
+                        <MaterialCommunityIcons name="phone-outline" size={13} color="#888" />
+                        <Text style={styles.rowContact}>{row.contact}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <PermissionBadge permission={row.permission} />
                 </View>
-                <View style={styles.rowTextGroup}>
-                  <Text style={styles.rowName}>{row.name}</Text>
-                  <Text style={styles.rowContact}>{row.contact}</Text>
+                <View style={styles.roleRow}>
+                  <Text style={styles.roleLabel}>Role</Text>
+                  <Text style={styles.roleText}>{row.role}</Text>
+                </View>
+                <View style={styles.actionRow}>
+                  <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+                    <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
+                    <MaterialCommunityIcons name="trash-can-outline" size={16} color="#ff3b30" />
+                  </TouchableOpacity>
                 </View>
               </View>
             ))}
@@ -140,45 +162,25 @@ const styles = StyleSheet.create({
   headerIcon: { marginRight: SPACING.md },
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
   content: { flex: 1, backgroundColor: '#fcfcfa' },
-  innerContent: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40 },
-  screenTitle: { fontSize: 24, lineHeight: 32, fontWeight: '700', color: '#161616' },
-  screenSubtitle: { marginTop: 4, fontSize: 15, lineHeight: 22, color: '#6d6d6d', maxWidth: '92%' },
+  innerContent: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 40 },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
+  titleGroup: { flex: 1 },
+  screenTitle: { fontSize: 22, fontWeight: '700', color: '#161616' },
+  screenSubtitle: { marginTop: 3, fontSize: 13, color: '#6d6d6d' },
   addButton: {
-    height: 40,
-    marginTop: 18,
-    marginBottom: 20,
+    height: 36,
     borderRadius: 10,
     backgroundColor: '#2453e6',
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 5,
   },
-  addButtonText: { marginLeft: 8, fontSize: 14, fontWeight: '600', color: COLORS.white },
-  tableCard: {
-    borderRadius: BORDER_RADIUS.xl,
-    borderWidth: 1,
-    borderColor: COLORS.gray200,
-    backgroundColor: COLORS.white,
-    overflow: 'hidden',
-  },
-  tableHeaderRow: {
-    height: 52,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray200,
-  },
-  tableHeaderCell: { fontSize: 14, fontWeight: '600', color: '#2a2a2a' },
-  tableBodyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 68,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray200,
-    backgroundColor: COLORS.white,
-  },
+  addButtonText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+  cardList: { gap: 10 },
+  card: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray200, padding: 12 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  userWrap: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   avatarContainer: {
     width: 38,
     height: 38,
@@ -189,15 +191,27 @@ const styles = StyleSheet.create({
     marginRight: 14,
   },
   rowTextGroup: { flex: 1 },
-  rowName: { fontSize: 16, lineHeight: 22, fontWeight: '600', color: '#171717' },
-  rowContact: { marginTop: 2, fontSize: 14, lineHeight: 20, color: '#6d6d6d' },
-  paginationSummary: { marginTop: 28, fontSize: 15, lineHeight: 22, color: '#6d6d6d' },
-  paginationRow: { marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  rowName: { fontSize: 16, fontWeight: '600', color: '#171717' },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  rowContact: { fontSize: 12, color: '#6d6d6d' },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  roleLabel: { fontSize: 12, color: '#777' },
+  roleText: { fontSize: 12, fontWeight: '500', color: '#222' },
+  badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  badgeFull: { backgroundColor: '#2453e6' },
+  badgeRead: { backgroundColor: '#f1f1f1' },
+  badgeText: { fontSize: 12, fontWeight: '600' },
+  badgeTextFull: { color: COLORS.white },
+  badgeTextRead: { color: '#333' },
+  actionRow: { marginTop: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  iconBtn: { width: 30, height: 30, borderRadius: 8, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
+  paginationSummary: { marginTop: 24, fontSize: 14, color: '#6d6d6d' },
+  paginationRow: { marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   paginationButton: {
-    minWidth: 86,
+    minWidth: 80,
     height: 32,
     paddingHorizontal: 12,
-    borderRadius: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#dfdfdf',
     backgroundColor: COLORS.white,
@@ -207,15 +221,6 @@ const styles = StyleSheet.create({
   paginationButtonDisabled: { backgroundColor: '#fbfbfb' },
   paginationButtonText: { fontSize: 14, fontWeight: '600', color: '#111111' },
   paginationButtonTextDisabled: { color: '#a6a6a6' },
-  pageIndicator: {
-    minWidth: 126,
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dfdfdf',
-    backgroundColor: COLORS.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  pageIndicator: { minWidth: 120, height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
   pageIndicatorText: { fontSize: 14, fontWeight: '600', color: '#151515' },
 });

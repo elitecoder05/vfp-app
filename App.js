@@ -17,6 +17,7 @@ import TransportScreen from './screens/TransportScreen';
 import WarehouseInventoryScreen from './screens/WarehouseInventoryScreen';
 import WarehouseMasterScreen from './screens/WarehouseMasterScreen';
 import UserManagementScreen from './screens/UserManagementScreen';
+import RawMaterialsScreen from './screens/RawMaterialsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -73,6 +74,10 @@ export default function App() {
           <Stack.Screen 
             name="UserManagement" 
             component={UserManagementScreen}
+          />
+          <Stack.Screen 
+            name="RawMaterials" 
+            component={RawMaterialsScreen}
           />
         </Stack.Navigator>
         <StatusBar style="auto" />

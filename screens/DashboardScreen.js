@@ -41,6 +41,18 @@ export default function DashboardScreen({ navigation }) {
       icon: 'account-group-outline',
       screen: 'UserManagement',
     },
+    {
+      title: 'Customer Management',
+      description: 'Manage your customer database and contact details.',
+      icon: 'account-multiple-outline',
+      screen: 'Customers',
+    },
+    {
+      title: 'Raw Material Management',
+      description: 'Manage raw materials, units, and supplier information.',
+      icon: 'package-variant-closed',
+      screen: 'RawMaterials',
+    },
   ];
 
   const handleModulePress = (screen) => {

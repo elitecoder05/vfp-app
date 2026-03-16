@@ -13,6 +13,21 @@ export const loginUser = async (phone, password) => {
   }
 };
 
+// Get Orders API method
+export const getOrders = async (page = 1, limit = 10) => {
+  try {
+    const response = await axiosInstance.get('/orders', {
+      params: {
+        page,
+        limit,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 
 
 
