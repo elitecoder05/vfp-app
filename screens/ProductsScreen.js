@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -18,10 +19,150 @@ const EMPTY_FORM = {
   dimensionWidth: '',
   dimensionHeight: '',
   dimensionUnit: '',
-  imageUrlInput: '',
   imageUrls: [],
   active: true,
 };
+
+function ProductModalForm({ title, form, setForm, primaryLabel, onPrimaryPress, onClose, showActiveToggle, submitting }) {
+  const [imageUploading, setImageUploading] = useState(false);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Please allow access to your photo library to upload images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    const uri = asset.uri;
+    const fileName = asset.fileName || uri.split('/').pop();
+    const mimeType = asset.mimeType || 'image/jpeg';
+    try {
+      setImageUploading(true);
+      const { uploadUrl, fileUrl } = await generateUploadUrl(fileName, mimeType, 'products');
+      const fileResponse = await fetch(uri);
+      const blob = await fileResponse.blob();
+      const putResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType },
+        body: blob,
+      });
+      if (!putResponse.ok) throw new Error(`S3 upload failed: ${putResponse.status}`);
+      setForm({ ...form, imageUrls: [...form.imageUrls, fileUrl] });
+    } catch (err) {
+      Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');
+      console.error('Image upload error:', err);
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  return (
+    <View style={styles.modalCard}>
+      <View style={styles.modalHeader}>
+        <Text style={styles.modalTitle}>{title}</Text>
+        <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
+          <MaterialCommunityIcons name="close" size={20} color="#222" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
+        <View style={styles.formGrid}>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>Name *</Text>
+            <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.inputBox} placeholder="Product name" placeholderTextColor="#999" />
+          </View>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>SKU *</Text>
+            <TextInput value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} style={styles.inputBox} placeholder="SKU" placeholderTextColor="#999" />
+          </View>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>Unit *</Text>
+            <TextInput value={form.unit} onChangeText={(v) => setForm({ ...form, unit: v })} style={styles.inputBox} placeholder="e.g., pieces, kg" placeholderTextColor="#999" />
+          </View>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>Category *</Text>
+            <TextInput value={form.category} onChangeText={(v) => setForm({ ...form, category: v })} style={styles.inputBox} placeholder="Category" placeholderTextColor="#999" />
+          </View>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>Price *</Text>
+            <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
+          </View>
+          <View style={styles.formCol}>
+            <Text style={styles.inputLabel}>Weight</Text>
+            <TextInput value={form.weight} onChangeText={(v) => setForm({ ...form, weight: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
+          </View>
+        </View>
+
+        <Text style={styles.inputLabel}>Description</Text>
+        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.textArea} multiline placeholder="Product description" placeholderTextColor="#999" />
+
+        <Text style={styles.inputLabel}>Dimensions</Text>
+        <View style={styles.dimensionRow}>
+          <TextInput value={form.dimensionLength} onChangeText={(v) => setForm({ ...form, dimensionLength: v })} style={styles.dimensionInput} placeholder="Length" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
+          <TextInput value={form.dimensionWidth} onChangeText={(v) => setForm({ ...form, dimensionWidth: v })} style={styles.dimensionInput} placeholder="Width" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
+          <TextInput value={form.dimensionHeight} onChangeText={(v) => setForm({ ...form, dimensionHeight: v })} style={styles.dimensionInput} placeholder="Height" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
+          <TextInput value={form.dimensionUnit} onChangeText={(v) => setForm({ ...form, dimensionUnit: v })} style={styles.dimensionInput} placeholder="Unit" placeholderTextColor="#9a9a9a" />
+        </View>
+
+        <Text style={styles.inputLabel}>Images</Text>
+        <TouchableOpacity
+          style={[styles.pickImageBtn, imageUploading && styles.pickImageBtnDisabled]}
+          onPress={pickImage}
+          disabled={imageUploading}
+          activeOpacity={0.8}
+        >
+          {imageUploading ? (
+            <>
+              <ActivityIndicator size="small" color="#2453e6" />
+              <Text style={styles.pickImageBtnText}>Uploading...</Text>
+            </>
+          ) : (
+            <>
+              <MaterialCommunityIcons name="image-plus" size={20} color="#2453e6" />
+              <Text style={styles.pickImageBtnText}>Pick from Gallery</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {form.imageUrls.length > 0 && (
+          <View style={styles.imageThumbnailRow}>
+            {form.imageUrls.map((url, idx) => (
+              <View key={`${url}-${idx}`} style={styles.imageThumbnailWrap}>
+                <Image source={{ uri: url }} style={styles.imageThumbnail} />
+                <TouchableOpacity
+                  style={styles.imageThumbnailRemove}
+                  onPress={() => setForm({ ...form, imageUrls: form.imageUrls.filter((_, i) => i !== idx) })}
+                >
+                  <MaterialCommunityIcons name="close-circle" size={20} color="#e53935" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {showActiveToggle && (
+          <View style={styles.activeRow}>
+            <Switch value={form.active} onValueChange={(v) => setForm({ ...form, active: v })} trackColor={{ false: '#ccc', true: '#8db2ff' }} thumbColor={form.active ? '#2453e6' : '#f4f3f4'} />
+            <Text style={styles.activeText}>Active</Text>
+          </View>
+        )}
+      </ScrollView>
+      <View style={styles.modalFooter}>
+        <TouchableOpacity style={styles.primaryModalBtn} onPress={onPrimaryPress} disabled={submitting}>
+          {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryModalBtnText}>{primaryLabel}</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.cancelModalBtn} onPress={onClose}>
+          <Text style={styles.cancelModalBtnText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 function ProductCard({ product, onEdit, onDelete }) {
   const formatPrice = (value) => `₹${Number(value || 0).toFixed(2)}`;
@@ -129,15 +270,6 @@ export default function ProductsScreen() {
     fetchProducts(currentPage);
   }, [currentPage]);
 
-  const addImageUrlToForm = (form, setter) => {
-    if (!form.imageUrlInput.trim()) return;
-    setter({
-      ...form,
-      imageUrls: [...form.imageUrls, form.imageUrlInput.trim()],
-      imageUrlInput: '',
-    });
-  };
-
   const openEdit = (product) => {
     setSelectedProduct(product);
     setEditForm({
@@ -152,7 +284,6 @@ export default function ProductsScreen() {
       dimensionWidth: product.dimensions?.width ? String(product.dimensions.width) : '',
       dimensionHeight: product.dimensions?.height ? String(product.dimensions.height) : '',
       dimensionUnit: product.dimensions?.unit || '',
-      imageUrlInput: '',
       imageUrls: product.images || [],
       active: product.isActive !== false,
     });
@@ -264,92 +395,6 @@ export default function ProductsScreen() {
   const showingStart = products.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
   const showingEnd = products.length ? showingStart + products.length - 1 : 0;
 
-  const ProductModalForm = ({ title, form, setForm, primaryLabel, onPrimaryPress, onClose, showActiveToggle }) => (
-    <View style={styles.modalCard}>
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>{title}</Text>
-        <TouchableOpacity onPress={onClose} style={styles.modalCloseBtn}>
-          <MaterialCommunityIcons name="close" size={20} color="#222" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
-        <View style={styles.formGrid}>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>Name *</Text>
-            <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.inputBox} placeholder="Product name" placeholderTextColor="#999" />
-          </View>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>SKU *</Text>
-            <TextInput value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} style={styles.inputBox} placeholder="SKU" placeholderTextColor="#999" />
-          </View>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>Unit *</Text>
-            <TextInput value={form.unit} onChangeText={(v) => setForm({ ...form, unit: v })} style={styles.inputBox} placeholder="e.g., pieces, kg" placeholderTextColor="#999" />
-          </View>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>Category *</Text>
-            <TextInput value={form.category} onChangeText={(v) => setForm({ ...form, category: v })} style={styles.inputBox} placeholder="Category" placeholderTextColor="#999" />
-          </View>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>Price *</Text>
-            <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
-          </View>
-          <View style={styles.formCol}>
-            <Text style={styles.inputLabel}>Weight</Text>
-            <TextInput value={form.weight} onChangeText={(v) => setForm({ ...form, weight: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
-          </View>
-        </View>
-
-        <Text style={styles.inputLabel}>Description</Text>
-        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.textArea} multiline placeholder="Product description" placeholderTextColor="#999" />
-
-        <Text style={styles.inputLabel}>Dimensions</Text>
-        <View style={styles.dimensionRow}>
-          <TextInput value={form.dimensionLength} onChangeText={(v) => setForm({ ...form, dimensionLength: v })} style={styles.dimensionInput} placeholder="Length" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
-          <TextInput value={form.dimensionWidth} onChangeText={(v) => setForm({ ...form, dimensionWidth: v })} style={styles.dimensionInput} placeholder="Width" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
-          <TextInput value={form.dimensionHeight} onChangeText={(v) => setForm({ ...form, dimensionHeight: v })} style={styles.dimensionInput} placeholder="Height" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
-          <TextInput value={form.dimensionUnit} onChangeText={(v) => setForm({ ...form, dimensionUnit: v })} style={styles.dimensionInput} placeholder="Unit" placeholderTextColor="#9a9a9a" />
-        </View>
-
-        <Text style={styles.inputLabel}>Images</Text>
-        <View style={styles.urlRow}>
-          <TextInput value={form.imageUrlInput} onChangeText={(v) => setForm({ ...form, imageUrlInput: v })} style={[styles.inputBox, styles.urlInput]} placeholder="Paste image URL" placeholderTextColor="#9a9a9a" />
-          <TouchableOpacity style={styles.secondaryMiniBtn} onPress={() => addImageUrlToForm(form, setForm)}>
-            <Text style={styles.secondaryMiniBtnText}>Add URL</Text>
-          </TouchableOpacity>
-        </View>
-
-        {form.imageUrls.length > 0 && (
-          <View style={styles.urlPillContainer}>
-            {form.imageUrls.map((url, idx) => (
-              <View key={`${url}-${idx}`} style={styles.urlPill}>
-                <Text style={styles.urlPillText} numberOfLines={1}>{url}</Text>
-                <TouchableOpacity onPress={() => setForm({ ...form, imageUrls: form.imageUrls.filter((_, i) => i !== idx) })}>
-                  <MaterialCommunityIcons name="close-circle" size={16} color="#c62828" />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {showActiveToggle && (
-          <View style={styles.activeRow}>
-            <Switch value={form.active} onValueChange={(v) => setForm({ ...form, active: v })} trackColor={{ false: '#ccc', true: '#8db2ff' }} thumbColor={form.active ? '#2453e6' : '#f4f3f4'} />
-            <Text style={styles.activeText}>Active</Text>
-          </View>
-        )}
-      </ScrollView>
-      <View style={styles.modalFooter}>
-        <TouchableOpacity style={styles.primaryModalBtn} onPress={onPrimaryPress} disabled={submitting}>
-          {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryModalBtnText}>{primaryLabel}</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelModalBtn} onPress={onClose}>
-          <Text style={styles.cancelModalBtnText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -448,6 +493,7 @@ export default function ProductsScreen() {
             onPrimaryPress={submitCreate}
             onClose={() => setShowAddModal(false)}
             showActiveToggle={true}
+            submitting={submitting}
           />
         </View>
       </Modal>
@@ -462,6 +508,7 @@ export default function ProductsScreen() {
             onPrimaryPress={submitEdit}
             onClose={() => setShowEditModal(false)}
             showActiveToggle={true}
+            submitting={submitting}
           />
         </View>
       </Modal>
@@ -538,9 +585,9 @@ const styles = StyleSheet.create({
   pageIndicator: { minWidth: 120, height: 36, borderRadius: 8, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
   pageIndicatorText: { fontSize: 14, fontWeight: '600', color: '#151515' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', padding: 10, justifyContent: 'center' },
-  modalCard: { maxHeight: '94%', backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: '#dcdcdc', overflow: 'hidden' },
+  modalCard: { height: '90%', maxHeight: '94%', width: '100%', maxWidth: 760, alignSelf: 'center', marginHorizontal: 8, backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: '#dcdcdc', overflow: 'hidden' },
   modalHeader: { minHeight: 56, borderBottomWidth: 1, borderBottomColor: '#ececec', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  modalTitle: { fontSize: 32, fontWeight: '700', color: '#111' },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: '#111' },
   modalCloseBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalBody: { flex: 1 },
   modalBodyContent: { padding: 14, paddingBottom: 24 },
@@ -551,13 +598,13 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 76, borderRadius: 12, borderWidth: 1, borderColor: '#d6d6d6', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: '#111', textAlignVertical: 'top' },
   dimensionRow: { flexDirection: 'row', gap: 10 },
   dimensionInput: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, borderColor: '#d6d6d6', backgroundColor: '#fff', paddingHorizontal: 12, fontSize: 16, color: '#111' },
-  urlRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  urlInput: { flex: 1 },
-  secondaryMiniBtn: { minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: '#d3d3d3', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  secondaryMiniBtnText: { fontSize: 16, fontWeight: '600', color: '#222' },
-  urlPillContainer: { marginTop: 10, gap: 6 },
-  urlPill: { minHeight: 34, borderRadius: 8, backgroundColor: '#f4f4f4', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, gap: 8 },
-  urlPillText: { flex: 1, fontSize: 12, color: '#444' },
+  pickImageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 12, borderWidth: 1.5, borderColor: '#2453e6', borderStyle: 'dashed', backgroundColor: '#f0f4ff', marginBottom: 4 },
+  pickImageBtnDisabled: { borderColor: '#aaa', backgroundColor: '#f9f9f9' },
+  pickImageBtnText: { fontSize: 15, fontWeight: '600', color: '#2453e6' },
+  imageThumbnailRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
+  imageThumbnailWrap: { position: 'relative' },
+  imageThumbnail: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#eee' },
+  imageThumbnailRemove: { position: 'absolute', top: -8, right: -8 },
   activeRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
   activeText: { fontSize: 18, fontWeight: '500', color: '#111' },
   modalFooter: { borderTopWidth: 1, borderTopColor: '#ececec', padding: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },

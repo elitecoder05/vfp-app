@@ -334,7 +334,6 @@ export default function OrdersScreen() {
       transportName: editTransport,
       items: itemsPayload,
       notes: editNotes,
-      status: (editOrder.status || 'placed').toString().toLowerCase(),
     };
 
     try {
