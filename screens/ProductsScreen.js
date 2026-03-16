@@ -23,21 +23,63 @@ const EMPTY_FORM = {
   active: true,
 };
 
-function Thumb({ images }) {
-  if (images && images.length > 0) {
-    return (
-      <View style={styles.thumbBox}>
-        <Image source={{ uri: images[0] }} style={styles.thumbImg} />
-      </View>
-    );
-  }
-  return <View style={styles.thumbBox}><Text style={styles.thumbDash}>—</Text></View>;
-}
-
-function ActiveBadge({ isActive }) {
+function ProductCard({ product, onEdit, onDelete }) {
+  const formatPrice = (value) => `₹${Number(value || 0).toFixed(2)}`;
+  
   return (
-    <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeInactive]}>
-      <Text style={[styles.badgeText, isActive ? styles.badgeTextActive : styles.badgeTextInactive]}>{isActive ? 'Active' : 'Inactive'}</Text>
+    <View style={styles.productCard}>
+      <View style={styles.cardRow1}>
+        <View style={styles.productInfo}>
+          {product.images && product.images.length > 0 ? (
+            <Image source={{ uri: product.images[0] }} style={styles.productImage} />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <MaterialCommunityIcons name="package-variant" size={24} color="#9e9e9e" />
+            </View>
+          )}
+          <View style={styles.productDetails}>
+            <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+            <Text style={styles.productSku}>SKU: {product.sku}</Text>
+          </View>
+        </View>
+        <View style={[styles.statusBadge, product.isActive ? styles.badgeActive : styles.badgeInactive]}>
+          <Text style={[styles.statusBadgeText, product.isActive ? styles.badgeTextActive : styles.badgeTextInactive]}>
+            {product.isActive ? 'Active' : 'Inactive'}
+          </Text>
+        </View>
+      </View>
+      
+      <View style={styles.cardMetaRow}>
+        <MaterialCommunityIcons name="tag-outline" size={13} color="#888" />
+        <Text style={styles.cardMeta}> {product.category || 'N/A'}</Text>
+        <Text style={styles.dot}>  ·  </Text>
+        <MaterialCommunityIcons name="currency-inr" size={13} color="#888" />
+        <Text style={styles.cardMeta}> {formatPrice(product.price)}</Text>
+      </View>
+      
+      <View style={styles.cardMetaRow}>
+        <MaterialCommunityIcons name="cube-outline" size={13} color="#888" />
+        <Text style={styles.cardMeta}> {product.unit || 'N/A'}</Text>
+        <Text style={styles.dot}>  ·  </Text>
+        <MaterialCommunityIcons name="weight" size={13} color="#888" />
+        <Text style={styles.cardMeta}> {product.weight || 0} kg</Text>
+      </View>
+      
+      {product.description ? (
+        <View style={styles.cardMetaRow}>
+          <MaterialCommunityIcons name="text" size={13} color="#888" />
+          <Text style={styles.cardMeta} numberOfLines={1}> {product.description}</Text>
+        </View>
+      ) : null}
+      
+      <View style={styles.cardActions}>
+        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => onEdit(product)}>
+          <MaterialCommunityIcons name="pencil-outline" size={17} color="#555" />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => onDelete(product)}>
+          <MaterialCommunityIcons name="trash-can-outline" size={17} color="#e53935" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -57,7 +99,6 @@ export default function ProductsScreen() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
 
   const fetchProducts = async (page = currentPage) => {
     setLoading(true);
@@ -87,38 +128,6 @@ export default function ProductsScreen() {
   useEffect(() => {
     fetchProducts(currentPage);
   }, [currentPage]);
-
-  const formatPrice = (value) => `₹${Number(value || 0).toFixed(2)}`;
-
-  const uploadImage = async (imageUri) => {
-    try {
-      setUploadingImage(true);
-      const fileName = imageUri.split('/').pop() || `image_${Date.now()}.jpg`;
-      const fileType = 'image/jpeg';
-      
-      const uploadData = await generateUploadUrl(fileName, fileType, 'products');
-      
-      // Upload to S3
-      const response = await fetch(uploadData.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': fileType,
-        },
-        body: await fetch(imageUri).then(r => r.blob()),
-      });
-      
-      if (response.ok) {
-        return uploadData.fileUrl;
-      }
-      throw new Error('Upload failed');
-    } catch (err) {
-      console.error('Error uploading image:', err);
-      Alert.alert('Upload Failed', 'Failed to upload image');
-      return null;
-    } finally {
-      setUploadingImage(false);
-    }
-  };
 
   const addImageUrlToForm = (form, setter) => {
     if (!form.imageUrlInput.trim()) return;
@@ -363,14 +372,21 @@ export default function ProductsScreen() {
         }
       >
         <View style={styles.innerContent}>
-          <View style={styles.titleRow}>
-            <View>
+          <View style={styles.titleToolbar}>
+            <View style={styles.titleBlock}>
               <Text style={styles.screenTitle}>Products</Text>
               <Text style={styles.screenSubtitle}>Manage products, their details, and inventory.</Text>
             </View>
-            <TouchableOpacity style={styles.addButton} activeOpacity={0.85} onPress={() => setShowAddModal(true)}>
+          </View>
+
+          <View style={styles.toolbar}>
+            <View style={styles.filterButton}>
+              <Text style={styles.filterButtonText}>All Products</Text>
+              <MaterialCommunityIcons name="chevron-down" size={16} color={COLORS.textPrimary} />
+            </View>
+            <TouchableOpacity style={styles.createButton} activeOpacity={0.85} onPress={() => setShowAddModal(true)}>
               <MaterialCommunityIcons name="plus" size={17} color={COLORS.white} />
-              <Text style={styles.addButtonText}>Add Product</Text>
+              <Text style={styles.createButtonText}>Add Product</Text>
             </TouchableOpacity>
           </View>
 
@@ -393,46 +409,21 @@ export default function ProductsScreen() {
               <Text style={styles.stateText}>No products found</Text>
             </View>
           ) : (
-            <View style={styles.tableCard}>
-              <ScrollView horizontal showsHorizontalScrollIndicator>
-                <View>
-                  <View style={styles.tableHeaderRow}>
-                    <Text style={[styles.tableHeaderText, styles.imageCol]}>Image</Text>
-                    <Text style={[styles.tableHeaderText, styles.nameCol]}>Name</Text>
-                    <Text style={[styles.tableHeaderText, styles.skuCol]}>SKU</Text>
-                    <Text style={[styles.tableHeaderText, styles.categoryCol]}>Category</Text>
-                    <Text style={[styles.tableHeaderText, styles.priceCol]}>Price</Text>
-                    <Text style={[styles.tableHeaderText, styles.statusCol]}>Status</Text>
-                    <Text style={[styles.tableHeaderText, styles.actionCol]}>Actions</Text>
-                  </View>
-                  {products.map((product) => (
-                    <View key={product._id} style={styles.tableBodyRow}>
-                      <View style={[styles.imageCol, styles.imageColWrap]}>
-                        <Thumb images={product.images} />
-                      </View>
-                      <Text style={[styles.tableBodyTextStrong, styles.nameCol]}>{product.name}</Text>
-                      <Text style={[styles.tableBodyTextMuted, styles.skuCol]}>{product.sku}</Text>
-                      <Text style={[styles.tableBodyTextMuted, styles.categoryCol]}>{product.category}</Text>
-                      <Text style={[styles.tableBodyTextStrong, styles.priceCol]}>{formatPrice(product.price)}</Text>
-                      <View style={styles.statusCol}>
-                        <ActiveBadge isActive={product.isActive} />
-                      </View>
-                      <View style={[styles.actionCol, styles.actionRow]}>
-                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openEdit(product)}>
-                          <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => { setSelectedProduct(product); setShowDeleteModal(true); }}>
-                          <MaterialCommunityIcons name="trash-can-outline" size={16} color="#e53935" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
+            <View style={styles.cardList}>
+              {products.map((product) => (
+                <ProductCard
+                  key={product._id}
+                  product={product}
+                  onEdit={openEdit}
+                  onDelete={(product) => { setSelectedProduct(product); setShowDeleteModal(true); }}
+                />
+              ))}
             </View>
           )}
 
-          <Text style={styles.paginationSummary}>Showing {showingStart} to {showingEnd} of {totalItems} products</Text>
+          <Text style={styles.paginationSummary}>
+            Showing {showingStart} to {showingEnd} of {totalItems} products
+          </Text>
           <View style={styles.paginationRow}>
             <TouchableOpacity style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]} onPress={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} activeOpacity={0.85}>
               <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>Previous</Text>
@@ -477,15 +468,17 @@ export default function ProductsScreen() {
 
       <Modal visible={showDeleteModal} transparent animationType="fade" onRequestClose={() => setShowDeleteModal(false)}>
         <View style={styles.modalBackdropCenter}>
-          <View style={styles.deleteModalCard}>
-            <Text style={styles.deleteTitle}>Confirm Delete</Text>
-            <Text style={styles.deleteMessage}>Are you sure you want to delete the product "{selectedProduct?.name}"? This action cannot be undone.</Text>
-            <View style={styles.deleteActionRow}>
-              <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setShowDeleteModal(false)}>
-                <Text style={styles.cancelModalBtnText}>Cancel</Text>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Confirm Delete</Text>
+            <Text style={styles.confirmMessage}>
+              Are you sure you want to delete the product "{selectedProduct?.name}"? This action cannot be undone.
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDeleteModal(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDelete} disabled={submitting}>
-                {submitting ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.deleteConfirmBtnText}>Delete</Text>}
+              <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.deleteBtnText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -503,40 +496,39 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
   content: { flex: 1, backgroundColor: '#fcfcfa' },
   innerContent: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 40 },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  titleToolbar: { marginBottom: 4 },
+  titleBlock: {},
   screenTitle: { fontSize: 22, fontWeight: '700', color: '#161616' },
-  screenSubtitle: { marginTop: 3, fontSize: 13, color: '#6d6d6d' },
-  addButton: { height: 36, borderRadius: 10, backgroundColor: '#2453e6', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  addButtonText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+  screenSubtitle: { marginTop: 3, fontSize: 13, lineHeight: 19, color: '#6d6d6d' },
+  toolbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, marginBottom: 14 },
+  filterButton: { height: 36, borderRadius: 10, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  filterButtonText: { fontSize: 13, fontWeight: '500', color: '#151515' },
+  createButton: { height: 36, borderRadius: 10, backgroundColor: '#2453e6', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  createButtonText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+  cardList: { gap: 10 },
+  productCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.lg, borderWidth: 1, borderColor: COLORS.gray200, padding: 14 },
+  cardRow1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  productInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  productImage: { width: 52, height: 52, borderRadius: 8, marginRight: 12 },
+  productImagePlaceholder: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#f6f6f6', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  productDetails: { flex: 1 },
+  productName: { fontSize: 16, fontWeight: '700', color: '#151515' },
+  productSku: { fontSize: 13, color: '#676767', marginTop: 2 },
+  statusBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeActive: { backgroundColor: '#2453e6' },
+  badgeInactive: { backgroundColor: '#fce4ec' },
+  statusBadgeText: { fontSize: 12, fontWeight: '600' },
+  badgeTextActive: { color: COLORS.white },
+  badgeTextInactive: { color: '#c62828' },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  cardMeta: { fontSize: 13, color: '#555' },
+  dot: { fontSize: 13, color: '#ccc' },
+  cardActions: { flexDirection: 'row', alignItems: 'center', marginTop: 10, gap: 8 },
+  iconBtn: { width: 34, height: 34, borderRadius: 8, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
   stateBox: { padding: 40, alignItems: 'center', justifyContent: 'center' },
   stateText: { marginTop: 12, fontSize: 14, color: '#6d6d6d', textAlign: 'center' },
   retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, backgroundColor: '#2453e6' },
   retryBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
-  tableCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xl, borderWidth: 1, borderColor: COLORS.gray200, overflow: 'hidden' },
-  tableHeaderRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderBottomWidth: 1, borderBottomColor: COLORS.gray200, backgroundColor: '#fff', paddingHorizontal: 10 },
-  tableBodyRow: { flexDirection: 'row', alignItems: 'center', minHeight: 74, borderBottomWidth: 1, borderBottomColor: COLORS.gray200, paddingHorizontal: 10, backgroundColor: '#fff' },
-  tableHeaderText: { fontSize: 15, fontWeight: '700', color: '#222' },
-  tableBodyTextStrong: { fontSize: 15, fontWeight: '600', color: '#222' },
-  tableBodyTextMuted: { fontSize: 15, color: '#676767' },
-  imageCol: { width: 74 },
-  nameCol: { width: 210 },
-  skuCol: { width: 160 },
-  categoryCol: { width: 160 },
-  priceCol: { width: 120 },
-  statusCol: { width: 126 },
-  actionCol: { width: 120 },
-  imageColWrap: { justifyContent: 'center' },
-  thumbBox: { width: 52, height: 52, borderRadius: 8, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: '#f6f6f6', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginRight: 12 },
-  thumbImg: { width: '100%', height: '100%' },
-  thumbDash: { fontSize: 20, color: '#aaa' },
-  badge: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  badgeActive: { backgroundColor: '#2453e6' },
-  badgeInactive: { backgroundColor: '#fce4ec' },
-  badgeText: { fontSize: 12, fontWeight: '700' },
-  badgeTextActive: { color: COLORS.white },
-  badgeTextInactive: { color: '#c62828' },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  iconBtn: { width: 30, height: 30, borderRadius: 7, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
   paginationSummary: { marginTop: 24, fontSize: 14, color: '#6d6d6d' },
   paginationRow: { marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   paginationButton: { minWidth: 80, height: 32, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: '#dfdfdf', backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center' },
@@ -574,10 +566,12 @@ const styles = StyleSheet.create({
   cancelModalBtn: { minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: '#d2d2d2', backgroundColor: '#fff', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   cancelModalBtnText: { fontSize: 17, color: '#111' },
   modalBackdropCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  deleteModalCard: { width: '94%', maxWidth: 760, backgroundColor: COLORS.white, borderRadius: 22, borderWidth: 1, borderColor: '#d8d8d8', overflow: 'hidden', padding: 24 },
-  deleteTitle: { fontSize: 46, fontWeight: '700', color: '#111' },
-  deleteMessage: { marginTop: 18, fontSize: 24, lineHeight: 34, color: '#6d6d6d' },
-  deleteActionRow: { marginTop: 22, flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
-  deleteConfirmBtn: { minHeight: 48, borderRadius: 14, backgroundColor: '#fbe8e8', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
-  deleteConfirmBtnText: { fontSize: 22, fontWeight: '600', color: '#e53935' },
+  confirmCard: { width: '94%', maxWidth: 760, backgroundColor: COLORS.white, borderRadius: 22, borderWidth: 1, borderColor: '#d8d8d8', overflow: 'hidden', padding: 24 },
+  confirmTitle: { fontSize: 46, fontWeight: '700', color: '#111' },
+  confirmMessage: { marginTop: 18, fontSize: 24, lineHeight: 34, color: '#6d6d6d' },
+  confirmActions: { marginTop: 22, flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
+  cancelBtn: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: '#d2d2d2', backgroundColor: '#fff', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  cancelBtnText: { fontSize: 22, color: '#111' },
+  deleteBtn: { minHeight: 48, borderRadius: 14, backgroundColor: '#fbe8e8', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  deleteBtnText: { fontSize: 22, fontWeight: '600', color: '#e53935' },
 });
