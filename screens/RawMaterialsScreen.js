@@ -1,7 +1,8 @@
+import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { createRawMaterial, deleteRawMaterial, getRawMaterials, updateRawMaterial } from '../api/api-methods';
+import { createRawMaterial, deleteRawMaterial, generateUploadUrl, getRawMaterials, updateRawMaterial } from '../api/api-methods';
 import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
 
 const PAGE_SIZE = 10;
@@ -12,6 +13,7 @@ const EMPTY_FORM = {
   category: '',
   supplier: '',
   description: '',
+  imageUrls: [],
   isActive: true,
 };
 
@@ -76,6 +78,169 @@ function RawMaterialCard({ item, onEdit, onDelete }) {
   );
 }
 
+function RawMaterialModalForm({ title, form, setForm, primaryLabel, onPrimaryPress, onClose, submitting }) {
+  const [imageUploading, setImageUploading] = useState(false);
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Please allow access to your photo library to upload images.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: false,
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets?.length) return;
+    const asset = result.assets[0];
+    const uri = asset.uri;
+    const fileName = asset.fileName || uri.split('/').pop();
+    const mimeType = asset.mimeType || 'image/jpeg';
+    try {
+      setImageUploading(true);
+      const { uploadUrl, fileUrl } = await generateUploadUrl(fileName, mimeType, 'raw-materials');
+      const fileResponse = await fetch(uri);
+      const blob = await fileResponse.blob();
+      const putResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': mimeType },
+        body: blob,
+      });
+      if (!putResponse.ok) throw new Error(`S3 upload failed: ${putResponse.status}`);
+      setForm({ ...form, imageUrls: [...form.imageUrls, fileUrl] });
+    } catch (err) {
+      Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');
+      console.error('Image upload error:', err);
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  return (
+    <View style={styles.editCard}>
+      <View style={styles.editHeader}>
+        <Text style={styles.editTitle}>{title}</Text>
+        <TouchableOpacity onPress={onClose}>
+          <MaterialCommunityIcons name="close" size={20} color="#333" />
+        </TouchableOpacity>
+      </View>
+      <ScrollView style={styles.editBody}>
+        <Text style={styles.inputLabel}>Name *</Text>
+        <View style={styles.textInputWrap}>
+          <TextInput 
+            value={form.name} 
+            onChangeText={(v) => setForm({ ...form, name: v })} 
+            style={styles.textInput}
+            placeholder="Enter raw material name"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <Text style={styles.inputLabel}>Unit *</Text>
+        <View style={styles.textInputWrap}>
+          <TextInput 
+            value={form.unit} 
+            onChangeText={(v) => setForm({ ...form, unit: v })} 
+            style={styles.textInput}
+            placeholder="e.g., kg, meters, pieces"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <Text style={styles.inputLabel}>Category</Text>
+        <View style={styles.textInputWrap}>
+          <TextInput 
+            value={form.category} 
+            onChangeText={(v) => setForm({ ...form, category: v })} 
+            style={styles.textInput}
+            placeholder="Enter category"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <Text style={styles.inputLabel}>Supplier</Text>
+        <View style={styles.textInputWrap}>
+          <TextInput 
+            value={form.supplier} 
+            onChangeText={(v) => setForm({ ...form, supplier: v })} 
+            style={styles.textInput}
+            placeholder="Enter supplier name"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <Text style={styles.inputLabel}>Description</Text>
+        <View style={styles.notesWrap}>
+          <TextInput 
+            value={form.description} 
+            onChangeText={(v) => setForm({ ...form, description: v })} 
+            style={styles.notesInput} 
+            multiline
+            placeholder="Enter description"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        <Text style={styles.inputLabel}>Images</Text>
+        <TouchableOpacity
+          style={[styles.pickImageBtn, imageUploading && styles.pickImageBtnDisabled]}
+          onPress={pickImage}
+          disabled={imageUploading}
+          activeOpacity={0.8}
+        >
+          {imageUploading ? (
+            <>
+              <ActivityIndicator size="small" color="#2453e6" />
+              <Text style={styles.pickImageBtnText}>Uploading...</Text>
+            </>
+          ) : (
+            <>
+              <MaterialCommunityIcons name="image-plus" size={20} color="#2453e6" />
+              <Text style={styles.pickImageBtnText}>Pick from Gallery</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {form.imageUrls.length > 0 && (
+          <View style={styles.imageThumbnailRow}>
+            {form.imageUrls.map((url, idx) => (
+              <View key={`${url}-${idx}`} style={styles.imageThumbnailWrap}>
+                <Image source={{ uri: url }} style={styles.imageThumbnail} />
+                <TouchableOpacity
+                  style={styles.imageThumbnailRemove}
+                  onPress={() => setForm({ ...form, imageUrls: form.imageUrls.filter((_, i) => i !== idx) })}
+                >
+                  <MaterialCommunityIcons name="close-circle" size={20} color="#e53935" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={styles.activeRow}>
+          <Switch 
+            value={form.isActive} 
+            onValueChange={(v) => setForm({ ...form, isActive: v })} 
+            trackColor={{ false: '#ccc', true: '#8db2ff' }} 
+            thumbColor={form.isActive ? '#2453e6' : '#f4f3f4'} 
+          />
+          <Text style={styles.activeText}>Active</Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.editFooter}>
+        <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
+          <Text style={styles.cancelBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.updateBtn} onPress={onPrimaryPress} disabled={submitting}>
+          {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.updateBtnText}>{primaryLabel}</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 export default function RawMaterialsScreen() {
   const [rawMaterials, setRawMaterials] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,7 +257,7 @@ export default function RawMaterialsScreen() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchRawMaterials = async (page = currentPage) => {
     setLoading(true);
@@ -134,6 +299,7 @@ export default function RawMaterialsScreen() {
       category: item.category || '',
       supplier: item.supplier || '',
       description: item.description || '',
+      imageUrls: item.images || [],
       isActive: item.isActive !== false,
     });
     setShowEditModal(true);
@@ -160,11 +326,12 @@ export default function RawMaterialsScreen() {
       category: addForm.category.trim() || '',
       supplier: addForm.supplier.trim() || '',
       description: addForm.description.trim() || '',
+      images: addForm.imageUrls,
       isActive: addForm.isActive,
     };
 
     try {
-      setSaving(true);
+      setSubmitting(true);
       await createRawMaterial(payload);
       setShowAddModal(false);
       setAddForm(EMPTY_FORM);
@@ -174,7 +341,7 @@ export default function RawMaterialsScreen() {
     } catch (err) {
       Alert.alert('Create Failed', err.response?.data?.message || 'Unable to create raw material');
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
@@ -195,11 +362,12 @@ export default function RawMaterialsScreen() {
       category: editForm.category.trim() || '',
       supplier: editForm.supplier.trim() || '',
       description: editForm.description.trim() || '',
+      images: editForm.imageUrls,
       isActive: editForm.isActive,
     };
 
     try {
-      setSaving(true);
+      setSubmitting(true);
       await updateRawMaterial(selectedItem._id, payload);
       setShowEditModal(false);
       setSelectedItem(null);
@@ -208,14 +376,14 @@ export default function RawMaterialsScreen() {
     } catch (err) {
       Alert.alert('Update Failed', err.response?.data?.message || 'Unable to update raw material');
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
 
   const confirmDelete = async () => {
     if (!selectedItem?._id) return;
     try {
-      setSaving(true);
+      setSubmitting(true);
       await deleteRawMaterial(selectedItem._id);
       setShowDeleteModal(false);
       setSelectedItem(null);
@@ -224,86 +392,9 @@ export default function RawMaterialsScreen() {
     } catch (err) {
       Alert.alert('Delete Failed', err.response?.data?.message || 'Unable to delete raw material');
     } finally {
-      setSaving(false);
+      setSubmitting(false);
     }
   };
-
-  const MaterialModalForm = ({ title, form, setForm, primaryLabel, onPrimaryPress, onClose }) => (
-    <View style={styles.modalCard}>
-      <View style={styles.modalHeader}>
-        <Text style={styles.modalTitle}>{title}</Text>
-        <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
-          <MaterialCommunityIcons name="close" size={20} color="#222" />
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.modalBody} contentContainerStyle={styles.modalBodyContent}>
-        <Text style={styles.inputLabel}>Name *</Text>
-        <TextInput 
-          value={form.name} 
-          onChangeText={(v) => setForm({ ...form, name: v })} 
-          style={styles.inputBox}
-          placeholder="Enter raw material name"
-          placeholderTextColor="#999"
-        />
-
-        <Text style={styles.inputLabel}>Unit *</Text>
-        <TextInput 
-          value={form.unit} 
-          onChangeText={(v) => setForm({ ...form, unit: v })} 
-          style={styles.inputBox}
-          placeholder="e.g., kg, meters, pieces"
-          placeholderTextColor="#999"
-        />
-
-        <Text style={styles.inputLabel}>Category</Text>
-        <TextInput 
-          value={form.category} 
-          onChangeText={(v) => setForm({ ...form, category: v })} 
-          style={styles.inputBox}
-          placeholder="Enter category"
-          placeholderTextColor="#999"
-        />
-
-        <Text style={styles.inputLabel}>Supplier</Text>
-        <TextInput 
-          value={form.supplier} 
-          onChangeText={(v) => setForm({ ...form, supplier: v })} 
-          style={styles.inputBox}
-          placeholder="Enter supplier name"
-          placeholderTextColor="#999"
-        />
-
-        <Text style={styles.inputLabel}>Description</Text>
-        <TextInput 
-          value={form.description} 
-          onChangeText={(v) => setForm({ ...form, description: v })} 
-          style={styles.textArea} 
-          multiline
-          placeholder="Enter description"
-          placeholderTextColor="#999"
-        />
-
-        <View style={styles.activeRow}>
-          <Switch 
-            value={form.isActive} 
-            onValueChange={(v) => setForm({ ...form, isActive: v })} 
-            trackColor={{ false: '#ccc', true: '#8db2ff' }} 
-            thumbColor={form.isActive ? '#2453e6' : '#f4f3f4'} 
-          />
-          <Text style={styles.activeText}>Active</Text>
-        </View>
-      </ScrollView>
-
-      <View style={styles.modalFooter}>
-        <TouchableOpacity style={styles.primaryModalBtn} onPress={onPrimaryPress} disabled={saving}>
-          {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryModalBtnText}>{primaryLabel}</Text>}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.cancelModalBtn} onPress={onClose}>
-          <Text style={styles.cancelModalBtnText}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -396,28 +487,30 @@ export default function RawMaterialsScreen() {
         </View>
       </ScrollView>
 
-      <Modal visible={showAddModal} transparent animationType="fade" onRequestClose={() => setShowAddModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <MaterialModalForm
+      <Modal visible={showAddModal} transparent animationType="slide" onRequestClose={() => setShowAddModal(false)}>
+        <View style={styles.modalBackdropCenter}>
+          <RawMaterialModalForm
             title="Add New Raw Material"
             form={addForm}
             setForm={setAddForm}
             primaryLabel="Create Raw Material"
             onPrimaryPress={submitCreate}
             onClose={() => setShowAddModal(false)}
+            submitting={submitting}
           />
         </View>
       </Modal>
 
-      <Modal visible={showEditModal} transparent animationType="fade" onRequestClose={() => setShowEditModal(false)}>
-        <View style={styles.modalBackdrop}>
-          <MaterialModalForm
+      <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <View style={styles.modalBackdropCenter}>
+          <RawMaterialModalForm
             title="Edit Raw Material"
             form={editForm}
             setForm={setEditForm}
             primaryLabel="Update Raw Material"
             onPrimaryPress={submitEdit}
             onClose={() => setShowEditModal(false)}
+            submitting={submitting}
           />
         </View>
       </Modal>
@@ -433,8 +526,8 @@ export default function RawMaterialsScreen() {
               <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setShowDeleteModal(false)}>
                 <Text style={styles.cancelModalBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDelete} disabled={saving}>
-                {saving ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.deleteConfirmBtnText}>Delete</Text>}
+              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDelete} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.deleteConfirmBtnText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -506,7 +599,7 @@ const styles = StyleSheet.create({
   modalCloseBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   modalBody: { flex: 1 },
   modalBodyContent: { padding: 14, paddingBottom: 24 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#222', marginBottom: 8, marginTop: 12 },
+  inputLabel: { marginTop: 10, marginBottom: 8, fontSize: 14, fontWeight: '600', color: '#222' },
   inputBox: { minHeight: 46, borderRadius: 12, borderWidth: 1, borderColor: '#d6d6d6', backgroundColor: '#fff', paddingHorizontal: 12, fontSize: 16, color: '#111' },
   textArea: { minHeight: 90, borderRadius: 12, borderWidth: 1, borderColor: '#d6d6d6', backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: '#111', textAlignVertical: 'top' },
   activeRow: { marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -516,6 +609,28 @@ const styles = StyleSheet.create({
   primaryModalBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.white },
   cancelModalBtn: { minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: '#d2d2d2', backgroundColor: '#fff', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
   cancelModalBtnText: { fontSize: 15, color: '#111' },
+  editCard: { maxHeight: '92%', backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: '#dcdcdc', overflow: 'hidden' },
+  editHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  editTitle: { fontSize: 24, fontWeight: '700', color: '#111' },
+  editBody: { paddingHorizontal: 16, paddingTop: 14 },
+  textInputWrap: { minHeight: 48, borderWidth: 1, borderColor: '#dcdcdc', borderRadius: 12, paddingHorizontal: 12, justifyContent: 'center' },
+  textInput: { fontSize: 16, color: '#111', paddingVertical: 10 },
+  notesWrap: { minHeight: 110, borderWidth: 1, borderColor: '#dcdcdc', borderRadius: 12, paddingHorizontal: 12, paddingTop: 8, marginBottom: 16 },
+  notesInput: { fontSize: 16, color: '#111', textAlignVertical: 'top' },
+  editFooter: { borderTopWidth: 1, borderTopColor: '#eee', padding: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+  cancelBtn: { height: 40, borderRadius: 12, borderWidth: 1, borderColor: '#dcdcdc', paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.white },
+  cancelBtnText: { fontSize: 15, fontWeight: '500', color: '#222' },
+  updateBtn: { height: 40, borderRadius: 12, backgroundColor: '#2453e6', paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
+  updateBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
+
+  // Image upload styles
+  pickImageBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 46, borderRadius: 12, borderWidth: 1.5, borderColor: '#2453e6', borderStyle: 'dashed', backgroundColor: '#f0f4ff', marginBottom: 4 },
+  pickImageBtnDisabled: { borderColor: '#aaa', backgroundColor: '#f9f9f9' },
+  pickImageBtnText: { fontSize: 15, fontWeight: '600', color: '#2453e6' },
+  imageThumbnailRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
+  imageThumbnailWrap: { position: 'relative' },
+  imageThumbnail: { width: 72, height: 72, borderRadius: 10, backgroundColor: '#eee' },
+  imageThumbnailRemove: { position: 'absolute', top: -8, right: -8 },
 
   // Delete modal styles
   modalBackdropCenter: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', padding: 16 },
