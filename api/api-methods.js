@@ -136,7 +136,7 @@ export const getCustomers = async (page = 1, limit = 1000) => {
 };
 
 // Get Transports API method
-export const getTransports = async (page = 1, limit = 1000) => {
+export const getTransports = async (page = 1, limit = 10) => {
   const endpoint = '/transports';
   const params = { page, limit };
   logApiCall({ name: 'getTransports', method: 'GET', url: endpoint, params });
@@ -146,6 +146,48 @@ export const getTransports = async (page = 1, limit = 1000) => {
     return response.data;
   } catch (error) {
     logApiError({ name: 'getTransports', error });
+    throw error;
+  }
+};
+
+// Create Transport API method
+export const createTransport = async (payload) => {
+  const endpoint = '/transports';
+  logApiCall({ name: 'createTransport', method: 'POST', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.post(endpoint, payload);
+    logApiSuccess({ name: 'createTransport', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'createTransport', error });
+    throw error;
+  }
+};
+
+// Update Transport API method
+export const updateTransport = async (transportId, payload) => {
+  const endpoint = `/transports/${transportId}`;
+  logApiCall({ name: 'updateTransport', method: 'PUT', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.put(endpoint, payload);
+    logApiSuccess({ name: 'updateTransport', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'updateTransport', error });
+    throw error;
+  }
+};
+
+// Delete Transport API method
+export const deleteTransport = async (transportId) => {
+  const endpoint = `/transports/${transportId}`;
+  logApiCall({ name: 'deleteTransport', method: 'DELETE', url: endpoint });
+  try {
+    const response = await axiosInstance.delete(endpoint);
+    logApiSuccess({ name: 'deleteTransport', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'deleteTransport', error });
     throw error;
   }
 };
