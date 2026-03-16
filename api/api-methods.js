@@ -166,7 +166,7 @@ export const getProducts = async (page = 1, limit = 1000) => {
 };
 
 // Get Raw Materials API method
-export const getRawMaterials = async (page = 1, limit = 1000) => {
+export const getRawMaterials = async (page = 1, limit = 10) => {
   const endpoint = '/raw-materials';
   const params = { page, limit };
   logApiCall({ name: 'getRawMaterials', method: 'GET', url: endpoint, params });
@@ -176,6 +176,48 @@ export const getRawMaterials = async (page = 1, limit = 1000) => {
     return response.data;
   } catch (error) {
     logApiError({ name: 'getRawMaterials', error });
+    throw error;
+  }
+};
+
+// Create Raw Material API method
+export const createRawMaterial = async (payload) => {
+  const endpoint = '/raw-materials';
+  logApiCall({ name: 'createRawMaterial', method: 'POST', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.post(endpoint, payload);
+    logApiSuccess({ name: 'createRawMaterial', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'createRawMaterial', error });
+    throw error;
+  }
+};
+
+// Update Raw Material API method
+export const updateRawMaterial = async (rawMaterialId, payload) => {
+  const endpoint = `/raw-materials/${rawMaterialId}`;
+  logApiCall({ name: 'updateRawMaterial', method: 'PUT', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.put(endpoint, payload);
+    logApiSuccess({ name: 'updateRawMaterial', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'updateRawMaterial', error });
+    throw error;
+  }
+};
+
+// Delete Raw Material API method
+export const deleteRawMaterial = async (rawMaterialId) => {
+  const endpoint = `/raw-materials/${rawMaterialId}`;
+  logApiCall({ name: 'deleteRawMaterial', method: 'DELETE', url: endpoint });
+  try {
+    const response = await axiosInstance.delete(endpoint);
+    logApiSuccess({ name: 'deleteRawMaterial', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'deleteRawMaterial', error });
     throw error;
   }
 };
