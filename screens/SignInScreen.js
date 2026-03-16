@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { login, selectAuthLoading, selectAuthError, clearError } from '../store/authSlice';
 import { COLORS, FONTS, SPACING, BORDER_RADIUS, SHADOWS } from '../constants/theme';
 
-export default function SignInScreen({ navigation }) {
+export default function SignInScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   
@@ -21,10 +21,7 @@ export default function SignInScreen({ navigation }) {
     dispatch(clearError());
     
     try {
-      const result = await dispatch(login({ phone, password })).unwrap();
-      if (result.token) {
-        navigation.navigate('Dashboard');
-      }
+      await dispatch(login({ phone, password })).unwrap();
     } catch (err) {
       Alert.alert('Login Failed', err.message || 'Please check your credentials');
     }

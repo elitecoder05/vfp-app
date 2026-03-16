@@ -1,32 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { Image, Modal, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { createProduct, deleteProduct, generateUploadUrl, getProducts, updateProduct } from '../api/api-methods';
 import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
 
 const PAGE_SIZE = 10;
-
-const INITIAL_PRODUCT_ROWS = [
-  { id: 'PROD0018', name: 'Product 18', imageType: 'icon', category: 'Sports', price: 473, status: 'Active', unit: 'CTN', weight: '30', description: 'Description for Product 18', dimensionLength: '98', dimensionWidth: '103', dimensionHeight: '73', dimensionUnit: 'cm', imageUrls: [] },
-  { id: 'PROD0019', name: 'Product 19', imageType: 'empty', category: 'Books', price: 959, status: 'Active', unit: 'CTN', weight: '20', description: 'Description for Product 19', dimensionLength: '50', dimensionWidth: '50', dimensionHeight: '50', dimensionUnit: 'cm', imageUrls: [] },
-  { id: 'PROD0020', name: 'Product 20', imageType: 'photo', category: 'Home & Garden', price: 901, status: 'Active', unit: 'liters', weight: '10', description: 'Description for Product 20', dimensionLength: '20', dimensionWidth: '10', dimensionHeight: '15', dimensionUnit: 'cm', imageUrls: [] },
-  { id: 'PROD0017', name: 'Product 17', imageType: 'empty', category: 'Toys', price: 705, status: 'Active', unit: 'PCS', weight: '8', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0016', name: 'Product 16', imageType: 'empty', category: 'Electronics', price: 287, status: 'Active', unit: 'PCS', weight: '6', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0015', name: 'Product 15', imageType: 'empty', category: 'Home & Garden', price: 262, status: 'Active', unit: 'PCS', weight: '5', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0014', name: 'Product 14', imageType: 'empty', category: 'Automotive', price: 871, status: 'Active', unit: 'PCS', weight: '12', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0013', name: 'Product 13', imageType: 'empty', category: 'Toys', price: 223, status: 'Active', unit: 'PCS', weight: '4', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0012', name: 'Product 12', imageType: 'empty', category: 'Books', price: 450, status: 'Active', unit: 'PCS', weight: '3', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0011', name: 'Product 11', imageType: 'empty', category: 'Electronics', price: 670, status: 'Active', unit: 'PCS', weight: '5', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0010', name: 'Product 10', imageType: 'empty', category: 'Sports', price: 380, status: 'Inactive', unit: 'PCS', weight: '6', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0009', name: 'Product 9', imageType: 'empty', category: 'Toys', price: 520, status: 'Active', unit: 'PCS', weight: '5', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0008', name: 'Product 8', imageType: 'empty', category: 'Beauty', price: 195, status: 'Active', unit: 'PCS', weight: '3', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0007', name: 'Product 7', imageType: 'empty', category: 'Automotive', price: 840, status: 'Active', unit: 'PCS', weight: '7', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0006', name: 'Product 6', imageType: 'empty', category: 'Home & Garden', price: 310, status: 'Active', unit: 'PCS', weight: '4', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0005', name: 'Product 5', imageType: 'empty', category: 'Electronics', price: 990, status: 'Inactive', unit: 'PCS', weight: '9', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0004', name: 'Product 4', imageType: 'empty', category: 'Books', price: 175, status: 'Active', unit: 'PCS', weight: '2', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0003', name: 'Product 3', imageType: 'empty', category: 'Toys', price: 655, status: 'Active', unit: 'PCS', weight: '5', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0002', name: 'Product 2', imageType: 'empty', category: 'Sports', price: 430, status: 'Active', unit: 'PCS', weight: '4', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-  { id: 'PROD0001', name: 'Product 1', imageType: 'empty', category: 'Beauty', price: 280, status: 'Active', unit: 'PCS', weight: '3', description: '', dimensionLength: '', dimensionWidth: '', dimensionHeight: '', dimensionUnit: '', imageUrls: [] },
-];
 
 const EMPTY_FORM = {
   name: '',
@@ -45,46 +23,102 @@ const EMPTY_FORM = {
   active: true,
 };
 
-function Thumb({ imageType }) {
-  if (imageType === 'photo') {
+function Thumb({ images }) {
+  if (images && images.length > 0) {
     return (
       <View style={styles.thumbBox}>
-        <Image source={{ uri: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=120&q=80' }} style={styles.thumbImg} />
+        <Image source={{ uri: images[0] }} style={styles.thumbImg} />
       </View>
     );
-  }
-  if (imageType === 'icon') {
-    return <View style={styles.thumbBox}><MaterialCommunityIcons name="truck-fast-outline" size={26} color="#90a4c6" /></View>;
   }
   return <View style={styles.thumbBox}><Text style={styles.thumbDash}>—</Text></View>;
 }
 
-function ActiveBadge({ status }) {
-  const active = status === 'Active';
+function ActiveBadge({ isActive }) {
   return (
-    <View style={[styles.badge, active ? styles.badgeActive : styles.badgeInactive]}>
-      <Text style={[styles.badgeText, active ? styles.badgeTextActive : styles.badgeTextInactive]}>{status}</Text>
+    <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeInactive]}>
+      <Text style={[styles.badgeText, isActive ? styles.badgeTextActive : styles.badgeTextInactive]}>{isActive ? 'Active' : 'Inactive'}</Text>
     </View>
   );
 }
 
 export default function ProductsScreen() {
-  const [products, setProducts] = useState(INITIAL_PRODUCT_ROWS);
+  const [products, setProducts] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
-  const totalPages = Math.max(1, Math.ceil(products.length / PAGE_SIZE));
-  const pageStart  = (currentPage - 1) * PAGE_SIZE;
-  const pageRows   = useMemo(() => products.slice(pageStart, pageStart + PAGE_SIZE), [products, pageStart]);
-  const showingStart = pageRows.length ? pageStart + 1 : 0;
-  const showingEnd   = Math.min(pageStart + PAGE_SIZE, products.length);
+  const fetchProducts = async (page = currentPage) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await getProducts(page, PAGE_SIZE);
+      setProducts(response.data || []);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalItems(response.pagination?.totalItems || 0);
+    } catch (err) {
+      setError('Failed to fetch products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchProducts(currentPage);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(currentPage);
+  }, [currentPage]);
 
   const formatPrice = (value) => `₹${Number(value || 0).toFixed(2)}`;
+
+  const uploadImage = async (imageUri) => {
+    try {
+      setUploadingImage(true);
+      const fileName = imageUri.split('/').pop() || `image_${Date.now()}.jpg`;
+      const fileType = 'image/jpeg';
+      
+      const uploadData = await generateUploadUrl(fileName, fileType, 'products');
+      
+      // Upload to S3
+      const response = await fetch(uploadData.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': fileType,
+        },
+        body: await fetch(imageUri).then(r => r.blob()),
+      });
+      
+      if (response.ok) {
+        return uploadData.fileUrl;
+      }
+      throw new Error('Upload failed');
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      Alert.alert('Upload Failed', 'Failed to upload image');
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const addImageUrlToForm = (form, setter) => {
     if (!form.imageUrlInput.trim()) return;
@@ -98,83 +132,128 @@ export default function ProductsScreen() {
   const openEdit = (product) => {
     setSelectedProduct(product);
     setEditForm({
-      name: product.name,
-      sku: product.id,
+      name: product.name || '',
+      sku: product.sku || '',
       unit: product.unit || '',
       category: product.category || '',
       price: String(product.price ?? 0),
       weight: String(product.weight ?? 0),
       description: product.description || '',
-      dimensionLength: product.dimensionLength || '',
-      dimensionWidth: product.dimensionWidth || '',
-      dimensionHeight: product.dimensionHeight || '',
-      dimensionUnit: product.dimensionUnit || '',
+      dimensionLength: product.dimensions?.length ? String(product.dimensions.length) : '',
+      dimensionWidth: product.dimensions?.width ? String(product.dimensions.width) : '',
+      dimensionHeight: product.dimensions?.height ? String(product.dimensions.height) : '',
+      dimensionUnit: product.dimensions?.unit || '',
       imageUrlInput: '',
-      imageUrls: product.imageUrls || [],
-      active: product.status !== 'Inactive',
+      imageUrls: product.images || [],
+      active: product.isActive !== false,
     });
     setShowEditModal(true);
   };
 
-  const submitCreate = () => {
-    const sku = addForm.sku.trim() || `PROD${String(products.length + 1).padStart(4, '0')}`;
-    const next = {
-      id: sku,
-      name: addForm.name.trim() || 'New Product',
-      imageType: addForm.imageUrls.length ? 'photo' : 'empty',
-      category: addForm.category.trim() || 'General',
-      price: Number(addForm.price || 0),
-      status: addForm.active ? 'Active' : 'Inactive',
+  const submitCreate = async () => {
+    if (!addForm.name.trim()) {
+      Alert.alert('Missing Data', 'Product name is required');
+      return;
+    }
+    if (!addForm.sku.trim()) {
+      Alert.alert('Missing Data', 'SKU is required');
+      return;
+    }
+
+    const payload = {
+      name: addForm.name.trim(),
+      sku: addForm.sku.trim(),
       unit: addForm.unit.trim(),
-      weight: addForm.weight,
-      description: addForm.description,
-      dimensionLength: addForm.dimensionLength,
-      dimensionWidth: addForm.dimensionWidth,
-      dimensionHeight: addForm.dimensionHeight,
-      dimensionUnit: addForm.dimensionUnit,
-      imageUrls: addForm.imageUrls,
+      description: addForm.description.trim(),
+      category: addForm.category.trim(),
+      price: Number(addForm.price) || 0,
+      weight: Number(addForm.weight) || 0,
+      dimensions: {
+        length: Number(addForm.dimensionLength) || 0,
+        width: Number(addForm.dimensionWidth) || 0,
+        height: Number(addForm.dimensionHeight) || 0,
+        unit: addForm.dimensionUnit.trim() || 'cm',
+      },
+      images: addForm.imageUrls,
+      isActive: addForm.active,
     };
-    setProducts((prev) => [next, ...prev]);
-    setAddForm(EMPTY_FORM);
-    setShowAddModal(false);
-    setCurrentPage(1);
+
+    try {
+      setSubmitting(true);
+      await createProduct(payload);
+      setAddForm(EMPTY_FORM);
+      setShowAddModal(false);
+      fetchProducts(1);
+      setCurrentPage(1);
+      Alert.alert('Success', 'Product created successfully');
+    } catch (err) {
+      Alert.alert('Create Failed', err.response?.data?.message || 'Unable to create product');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const submitEdit = () => {
-    if (!selectedProduct) return;
-    setProducts((prev) =>
-      prev.map((row) =>
-        row.id === selectedProduct.id
-          ? {
-              ...row,
-              id: editForm.sku.trim() || row.id,
-              name: editForm.name.trim() || row.name,
-              category: editForm.category.trim() || row.category,
-              price: Number(editForm.price || 0),
-              status: editForm.active ? 'Active' : 'Inactive',
-              unit: editForm.unit,
-              weight: editForm.weight,
-              description: editForm.description,
-              dimensionLength: editForm.dimensionLength,
-              dimensionWidth: editForm.dimensionWidth,
-              dimensionHeight: editForm.dimensionHeight,
-              dimensionUnit: editForm.dimensionUnit,
-              imageUrls: editForm.imageUrls,
-              imageType: editForm.imageUrls.length ? 'photo' : row.imageType,
-            }
-          : row
-      )
-    );
-    setShowEditModal(false);
-    setSelectedProduct(null);
+  const submitEdit = async () => {
+    if (!selectedProduct?._id) return;
+    if (!editForm.name.trim()) {
+      Alert.alert('Missing Data', 'Product name is required');
+      return;
+    }
+    if (!editForm.sku.trim()) {
+      Alert.alert('Missing Data', 'SKU is required');
+      return;
+    }
+
+    const payload = {
+      name: editForm.name.trim(),
+      sku: editForm.sku.trim(),
+      unit: editForm.unit.trim(),
+      description: editForm.description.trim(),
+      category: editForm.category.trim(),
+      price: Number(editForm.price) || 0,
+      weight: Number(editForm.weight) || 0,
+      dimensions: {
+        length: Number(editForm.dimensionLength) || 0,
+        width: Number(editForm.dimensionWidth) || 0,
+        height: Number(editForm.dimensionHeight) || 0,
+        unit: editForm.dimensionUnit.trim() || 'cm',
+      },
+      images: editForm.imageUrls,
+      isActive: editForm.active,
+    };
+
+    try {
+      setSubmitting(true);
+      await updateProduct(selectedProduct._id, payload);
+      setShowEditModal(false);
+      setSelectedProduct(null);
+      fetchProducts(currentPage);
+      Alert.alert('Success', 'Product updated successfully');
+    } catch (err) {
+      Alert.alert('Update Failed', err.response?.data?.message || 'Unable to update product');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const confirmDelete = () => {
-    if (!selectedProduct) return;
-    setProducts((prev) => prev.filter((row) => row.id !== selectedProduct.id));
-    setShowDeleteModal(false);
-    setSelectedProduct(null);
+  const confirmDelete = async () => {
+    if (!selectedProduct?._id) return;
+    try {
+      setSubmitting(true);
+      await deleteProduct(selectedProduct._id);
+      setShowDeleteModal(false);
+      setSelectedProduct(null);
+      fetchProducts(currentPage);
+      Alert.alert('Success', 'Product deleted successfully');
+    } catch (err) {
+      Alert.alert('Delete Failed', err.response?.data?.message || 'Unable to delete product');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const showingStart = products.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+  const showingEnd = products.length ? showingStart + products.length - 1 : 0;
 
   const ProductModalForm = ({ title, form, setForm, primaryLabel, onPrimaryPress, onClose, showActiveToggle }) => (
     <View style={styles.modalCard}>
@@ -188,38 +267,38 @@ export default function ProductsScreen() {
         <View style={styles.formGrid}>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>Name *</Text>
-            <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.inputBox} />
+            <TextInput value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} style={styles.inputBox} placeholder="Product name" placeholderTextColor="#999" />
           </View>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>SKU *</Text>
-            <TextInput value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} style={styles.inputBox} />
+            <TextInput value={form.sku} onChangeText={(v) => setForm({ ...form, sku: v })} style={styles.inputBox} placeholder="SKU" placeholderTextColor="#999" />
           </View>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>Unit *</Text>
-            <TextInput value={form.unit} onChangeText={(v) => setForm({ ...form, unit: v })} style={styles.inputBox} />
+            <TextInput value={form.unit} onChangeText={(v) => setForm({ ...form, unit: v })} style={styles.inputBox} placeholder="e.g., pieces, kg" placeholderTextColor="#999" />
           </View>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>Category *</Text>
-            <TextInput value={form.category} onChangeText={(v) => setForm({ ...form, category: v })} style={styles.inputBox} />
+            <TextInput value={form.category} onChangeText={(v) => setForm({ ...form, category: v })} style={styles.inputBox} placeholder="Category" placeholderTextColor="#999" />
           </View>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>Price *</Text>
-            <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} style={styles.inputBox} keyboardType="decimal-pad" />
+            <TextInput value={form.price} onChangeText={(v) => setForm({ ...form, price: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
           </View>
           <View style={styles.formCol}>
             <Text style={styles.inputLabel}>Weight</Text>
-            <TextInput value={form.weight} onChangeText={(v) => setForm({ ...form, weight: v })} style={styles.inputBox} keyboardType="decimal-pad" />
+            <TextInput value={form.weight} onChangeText={(v) => setForm({ ...form, weight: v })} style={styles.inputBox} keyboardType="decimal-pad" placeholder="0" placeholderTextColor="#999" />
           </View>
         </View>
 
         <Text style={styles.inputLabel}>Description</Text>
-        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.textArea} multiline />
+        <TextInput value={form.description} onChangeText={(v) => setForm({ ...form, description: v })} style={styles.textArea} multiline placeholder="Product description" placeholderTextColor="#999" />
 
         <Text style={styles.inputLabel}>Dimensions</Text>
         <View style={styles.dimensionRow}>
-          <TextInput value={form.dimensionLength} onChangeText={(v) => setForm({ ...form, dimensionLength: v })} style={styles.dimensionInput} placeholder="Length" placeholderTextColor="#9a9a9a" />
-          <TextInput value={form.dimensionWidth} onChangeText={(v) => setForm({ ...form, dimensionWidth: v })} style={styles.dimensionInput} placeholder="Width" placeholderTextColor="#9a9a9a" />
-          <TextInput value={form.dimensionHeight} onChangeText={(v) => setForm({ ...form, dimensionHeight: v })} style={styles.dimensionInput} placeholder="Height" placeholderTextColor="#9a9a9a" />
+          <TextInput value={form.dimensionLength} onChangeText={(v) => setForm({ ...form, dimensionLength: v })} style={styles.dimensionInput} placeholder="Length" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
+          <TextInput value={form.dimensionWidth} onChangeText={(v) => setForm({ ...form, dimensionWidth: v })} style={styles.dimensionInput} placeholder="Width" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
+          <TextInput value={form.dimensionHeight} onChangeText={(v) => setForm({ ...form, dimensionHeight: v })} style={styles.dimensionInput} placeholder="Height" placeholderTextColor="#9a9a9a" keyboardType="decimal-pad" />
           <TextInput value={form.dimensionUnit} onChangeText={(v) => setForm({ ...form, dimensionUnit: v })} style={styles.dimensionInput} placeholder="Unit" placeholderTextColor="#9a9a9a" />
         </View>
 
@@ -230,11 +309,6 @@ export default function ProductsScreen() {
             <Text style={styles.secondaryMiniBtnText}>Add URL</Text>
           </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.fileInputMock} activeOpacity={0.9}>
-          <Text style={styles.fileInputMockText}>Choose Files  </Text>
-          <Text style={styles.fileInputMockSub}>No file chosen</Text>
-        </TouchableOpacity>
 
         {form.imageUrls.length > 0 && (
           <View style={styles.urlPillContainer}>
@@ -257,8 +331,8 @@ export default function ProductsScreen() {
         )}
       </ScrollView>
       <View style={styles.modalFooter}>
-        <TouchableOpacity style={styles.primaryModalBtn} onPress={onPrimaryPress}>
-          <Text style={styles.primaryModalBtnText}>{primaryLabel}</Text>
+        <TouchableOpacity style={styles.primaryModalBtn} onPress={onPrimaryPress} disabled={submitting}>
+          {submitting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.primaryModalBtnText}>{primaryLabel}</Text>}
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelModalBtn} onPress={onClose}>
           <Text style={styles.cancelModalBtnText}>Cancel</Text>
@@ -276,7 +350,18 @@ export default function ProductsScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2453e6']}
+            tintColor="#2453e6"
+          />
+        }
+      >
         <View style={styles.innerContent}>
           <View style={styles.titleRow}>
             <View>
@@ -289,45 +374,65 @@ export default function ProductsScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.tableCard}>
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <View>
-                <View style={styles.tableHeaderRow}>
-                  <Text style={[styles.tableHeaderText, styles.imageCol]}>Image</Text>
-                  <Text style={[styles.tableHeaderText, styles.nameCol]}>Name</Text>
-                  <Text style={[styles.tableHeaderText, styles.skuCol]}>SKU</Text>
-                  <Text style={[styles.tableHeaderText, styles.categoryCol]}>Category</Text>
-                  <Text style={[styles.tableHeaderText, styles.priceCol]}>Price</Text>
-                  <Text style={[styles.tableHeaderText, styles.statusCol]}>Status</Text>
-                  <Text style={[styles.tableHeaderText, styles.actionCol]}>Actions</Text>
-                </View>
-                {pageRows.map((product) => (
-                  <View key={product.id} style={styles.tableBodyRow}>
-                    <View style={[styles.imageCol, styles.imageColWrap]}>
-                      <Thumb imageType={product.imageType} />
-                    </View>
-                    <Text style={[styles.tableBodyTextStrong, styles.nameCol]}>{product.name}</Text>
-                    <Text style={[styles.tableBodyTextMuted, styles.skuCol]}>{product.id}</Text>
-                    <Text style={[styles.tableBodyTextMuted, styles.categoryCol]}>{product.category}</Text>
-                    <Text style={[styles.tableBodyTextStrong, styles.priceCol]}>{formatPrice(product.price)}</Text>
-                    <View style={styles.statusCol}>
-                      <ActiveBadge status={product.status} />
-                    </View>
-                    <View style={[styles.actionCol, styles.actionRow]}>
-                      <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openEdit(product)}>
-                        <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => { setSelectedProduct(product); setShowDeleteModal(true); }}>
-                        <MaterialCommunityIcons name="trash-can-outline" size={16} color="#e53935" />
-                      </TouchableOpacity>
-                    </View>
+          {loading ? (
+            <View style={styles.stateBox}>
+              <ActivityIndicator size="large" color="#2453e6" />
+              <Text style={styles.stateText}>Loading products...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.stateBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#e53935" />
+              <Text style={styles.stateText}>{error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={() => fetchProducts(currentPage)}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : products.length === 0 ? (
+            <View style={styles.stateBox}>
+              <MaterialCommunityIcons name="package-variant" size={40} color="#9e9e9e" />
+              <Text style={styles.stateText}>No products found</Text>
+            </View>
+          ) : (
+            <View style={styles.tableCard}>
+              <ScrollView horizontal showsHorizontalScrollIndicator>
+                <View>
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderText, styles.imageCol]}>Image</Text>
+                    <Text style={[styles.tableHeaderText, styles.nameCol]}>Name</Text>
+                    <Text style={[styles.tableHeaderText, styles.skuCol]}>SKU</Text>
+                    <Text style={[styles.tableHeaderText, styles.categoryCol]}>Category</Text>
+                    <Text style={[styles.tableHeaderText, styles.priceCol]}>Price</Text>
+                    <Text style={[styles.tableHeaderText, styles.statusCol]}>Status</Text>
+                    <Text style={[styles.tableHeaderText, styles.actionCol]}>Actions</Text>
                   </View>
-                ))}
-              </View>
-            </ScrollView>
-          </View>
+                  {products.map((product) => (
+                    <View key={product._id} style={styles.tableBodyRow}>
+                      <View style={[styles.imageCol, styles.imageColWrap]}>
+                        <Thumb images={product.images} />
+                      </View>
+                      <Text style={[styles.tableBodyTextStrong, styles.nameCol]}>{product.name}</Text>
+                      <Text style={[styles.tableBodyTextMuted, styles.skuCol]}>{product.sku}</Text>
+                      <Text style={[styles.tableBodyTextMuted, styles.categoryCol]}>{product.category}</Text>
+                      <Text style={[styles.tableBodyTextStrong, styles.priceCol]}>{formatPrice(product.price)}</Text>
+                      <View style={styles.statusCol}>
+                        <ActiveBadge isActive={product.isActive} />
+                      </View>
+                      <View style={[styles.actionCol, styles.actionRow]}>
+                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openEdit(product)}>
+                          <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => { setSelectedProduct(product); setShowDeleteModal(true); }}>
+                          <MaterialCommunityIcons name="trash-can-outline" size={16} color="#e53935" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          )}
 
-          <Text style={styles.paginationSummary}>Showing {showingStart} to {showingEnd} of {products.length} products</Text>
+          <Text style={styles.paginationSummary}>Showing {showingStart} to {showingEnd} of {totalItems} products</Text>
           <View style={styles.paginationRow}>
             <TouchableOpacity style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]} onPress={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} activeOpacity={0.85}>
               <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>Previous</Text>
@@ -379,8 +484,8 @@ export default function ProductsScreen() {
               <TouchableOpacity style={styles.cancelModalBtn} onPress={() => setShowDeleteModal(false)}>
                 <Text style={styles.cancelModalBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDelete}>
-                <Text style={styles.deleteConfirmBtnText}>Delete</Text>
+              <TouchableOpacity style={styles.deleteConfirmBtn} onPress={confirmDelete} disabled={submitting}>
+                {submitting ? <ActivityIndicator size="small" color="#e53935" /> : <Text style={styles.deleteConfirmBtnText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -403,6 +508,10 @@ const styles = StyleSheet.create({
   screenSubtitle: { marginTop: 3, fontSize: 13, color: '#6d6d6d' },
   addButton: { height: 36, borderRadius: 10, backgroundColor: '#2453e6', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
   addButtonText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+  stateBox: { padding: 40, alignItems: 'center', justifyContent: 'center' },
+  stateText: { marginTop: 12, fontSize: 14, color: '#6d6d6d', textAlign: 'center' },
+  retryBtn: { marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 8, backgroundColor: '#2453e6' },
+  retryBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.white },
   tableCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xl, borderWidth: 1, borderColor: COLORS.gray200, overflow: 'hidden' },
   tableHeaderRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52, borderBottomWidth: 1, borderBottomColor: COLORS.gray200, backgroundColor: '#fff', paddingHorizontal: 10 },
   tableBodyRow: { flexDirection: 'row', alignItems: 'center', minHeight: 74, borderBottomWidth: 1, borderBottomColor: COLORS.gray200, paddingHorizontal: 10, backgroundColor: '#fff' },
@@ -454,9 +563,6 @@ const styles = StyleSheet.create({
   urlInput: { flex: 1 },
   secondaryMiniBtn: { minHeight: 40, borderRadius: 12, borderWidth: 1, borderColor: '#d3d3d3', paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
   secondaryMiniBtnText: { fontSize: 16, fontWeight: '600', color: '#222' },
-  fileInputMock: { marginTop: 10, minHeight: 44, borderRadius: 10, borderWidth: 1, borderColor: '#d6d6d6', backgroundColor: '#fafafa', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10 },
-  fileInputMockText: { fontSize: 17, fontWeight: '600', color: '#111' },
-  fileInputMockSub: { fontSize: 17, color: '#333' },
   urlPillContainer: { marginTop: 10, gap: 6 },
   urlPill: { minHeight: 34, borderRadius: 8, backgroundColor: '#f4f4f4', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, gap: 8 },
   urlPillText: { flex: 1, fontSize: 12, color: '#444' },

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { deleteOrder, getOrders, updateOrder, updateOrderStatus } from '../api/api-methods';
+import { createOrder, deleteOrder, getCustomers, getOrders, getProducts, getRawMaterials, getTransports, updateOrder, updateOrderStatus } from '../api/api-methods';
 import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
 
 const PAGE_SIZE = 10;
@@ -94,6 +94,7 @@ export default function OrdersScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
@@ -105,6 +106,22 @@ export default function OrdersScreen() {
   const [editItems, setEditItems] = useState([]);
   const [updatingOrderId, setUpdatingOrderId] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  
+  // Create Order states
+  const [createOrderModal, setCreateOrderModal] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [transports, setTransports] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [rawMaterials, setRawMaterials] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedTransport, setSelectedTransport] = useState(null);
+  const [orderItems, setOrderItems] = useState([]);
+  const [orderNotes, setOrderNotes] = useState('');
+  const [creatingOrder, setCreatingOrder] = useState(false);
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false);
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
+  const [transportDropdownOpen, setTransportDropdownOpen] = useState(false);
+  const [productDropdownOpen, setProductDropdownOpen] = useState(false);
 
   const fetchOrders = async (page, statusFilter = selectedFilter) => {
     setLoading(true);
@@ -134,6 +151,109 @@ export default function OrdersScreen() {
       console.error('Error fetching orders:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchOrders(currentPage, selectedFilter);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const fetchDropdownData = async () => {
+    setLoadingDropdowns(true);
+    try {
+      const [customersRes, transportsRes, productsRes, rawMaterialsRes] = await Promise.all([
+        getCustomers(1, 1000),
+        getTransports(1, 1000),
+        getProducts(1, 1000),
+        getRawMaterials(1, 1000),
+      ]);
+      setCustomers(customersRes.data || []);
+      setTransports(transportsRes.data || []);
+      setProducts(productsRes.data || []);
+      setRawMaterials(rawMaterialsRes.data || []);
+    } catch (err) {
+      console.error('Error fetching dropdown data:', err);
+      Alert.alert('Error', 'Failed to load form data');
+    } finally {
+      setLoadingDropdowns(false);
+    }
+  };
+
+  const openCreateOrder = () => {
+    setCreateOrderModal(true);
+    setSelectedCustomer(null);
+    setSelectedTransport(null);
+    setOrderItems([]);
+    setOrderNotes('');
+    fetchDropdownData();
+  };
+
+  const addOrderItem = (product) => {
+    const existingIndex = orderItems.findIndex(item => item.item_id === product._id);
+    if (existingIndex >= 0) {
+      setOrderItems(prev => prev.map((item, i) => 
+        i === existingIndex ? { ...item, quantity: String(Number(item.quantity) + 1) } : item
+      ));
+    } else {
+      setOrderItems(prev => [...prev, {
+        itemType: 'product',
+        item_id: product._id,
+        itemName: product.name,
+        sku: product.sku,
+        unit: product.unit,
+        quantity: '1',
+      }]);
+    }
+    setProductDropdownOpen(false);
+  };
+
+  const updateOrderItemQty = (index, qty) => {
+    const quantity = qty.replace(/[^0-9]/g, '');
+    setOrderItems(prev => prev.map((item, i) => i === index ? { ...item, quantity } : item));
+  };
+
+  const removeOrderItem = (index) => {
+    setOrderItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const submitCreateOrder = async () => {
+    if (!selectedCustomer) {
+      Alert.alert('Missing Data', 'Please select a customer');
+      return;
+    }
+    if (!orderItems.length) {
+      Alert.alert('Missing Items', 'Please add at least one product');
+      return;
+    }
+
+    const itemsPayload = orderItems.map(item => ({
+      itemType: item.itemType,
+      item_id: item.item_id,
+      quantity: Number(item.quantity) || 1,
+    }));
+
+    const payload = {
+      customer_id: selectedCustomer._id,
+      transport_id: selectedTransport?._id || '',
+      items: itemsPayload,
+      notes: orderNotes,
+    };
+
+    try {
+      setCreatingOrder(true);
+      await createOrder(payload);
+      setCreateOrderModal(false);
+      fetchOrders(currentPage, selectedFilter);
+      Alert.alert('Success', 'Order created successfully');
+    } catch (err) {
+      Alert.alert('Create Failed', err.response?.data?.message || 'Unable to create order');
+    } finally {
+      setCreatingOrder(false);
     }
   };
 
@@ -238,7 +358,18 @@ export default function OrdersScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2453e6']}
+            tintColor="#2453e6"
+          />
+        }
+      >
         <View style={styles.innerContent}>
           <View style={styles.titleToolbar}>
             <View style={styles.titleBlock}>
@@ -252,7 +383,7 @@ export default function OrdersScreen() {
               <Text style={styles.filterButtonText}>{filterLabel}</Text>
               <MaterialCommunityIcons name="chevron-down" size={16} color={COLORS.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.createButton} activeOpacity={0.85} onPress={() => Alert.alert('Coming Soon', 'Create Order flow will be connected next')}>
+            <TouchableOpacity style={styles.createButton} activeOpacity={0.85} onPress={openCreateOrder}>
               <MaterialCommunityIcons name="plus" size={17} color={COLORS.white} />
               <Text style={styles.createButtonText}>Create Order</Text>
             </TouchableOpacity>
@@ -412,6 +543,171 @@ export default function OrdersScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Create Order Modal */}
+      <Modal transparent visible={createOrderModal} animationType="slide" onRequestClose={() => setCreateOrderModal(false)}>
+        <View style={styles.modalBackdropCenter}>
+          <View style={styles.editCard}>
+            <View style={styles.editHeader}>
+              <Text style={styles.editTitle}>Create Order</Text>
+              <TouchableOpacity onPress={() => setCreateOrderModal(false)}>
+                <MaterialCommunityIcons name="close" size={20} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingDropdowns ? (
+              <View style={styles.stateBox}>
+                <ActivityIndicator size="large" color="#2453e6" />
+                <Text style={styles.stateText}>Loading form data...</Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.editBody}>
+                {/* Customer Selection */}
+                <Text style={styles.inputLabel}>Customer *</Text>
+                <TouchableOpacity 
+                  style={styles.textInputWrap} 
+                  onPress={() => setCustomerDropdownOpen(!customerDropdownOpen)}
+                >
+                  <Text style={[styles.textInput, !selectedCustomer && { color: '#999' }]}>
+                    {selectedCustomer ? selectedCustomer.name : 'Select a customer'}
+                  </Text>
+                  <MaterialCommunityIcons name={customerDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {customerDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                      {customers.map((customer) => (
+                        <TouchableOpacity
+                          key={customer._id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedCustomer(customer);
+                            setCustomerDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownItemText}>{customer.name}</Text>
+                          <Text style={styles.dropdownItemSubtext}>{customer.phone}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Transport Selection */}
+                <Text style={styles.inputLabel}>Transport</Text>
+                <TouchableOpacity 
+                  style={styles.textInputWrap} 
+                  onPress={() => setTransportDropdownOpen(!transportDropdownOpen)}
+                >
+                  <Text style={[styles.textInput, !selectedTransport && { color: '#999' }]}>
+                    {selectedTransport ? selectedTransport.name : 'Select transport (optional)'}
+                  </Text>
+                  <MaterialCommunityIcons name={transportDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {transportDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                      <TouchableOpacity
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          setSelectedTransport(null);
+                          setTransportDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemText}>No Transport</Text>
+                      </TouchableOpacity>
+                      {transports.map((transport) => (
+                        <TouchableOpacity
+                          key={transport._id}
+                          style={styles.dropdownItem}
+                          onPress={() => {
+                            setSelectedTransport(transport);
+                            setTransportDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={styles.dropdownItemText}>{transport.name}</Text>
+                          <Text style={styles.dropdownItemSubtext}>{transport.phone}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Product Selection */}
+                <Text style={styles.inputLabel}>Products *</Text>
+                <TouchableOpacity 
+                  style={styles.textInputWrap} 
+                  onPress={() => setProductDropdownOpen(!productDropdownOpen)}
+                >
+                  <Text style={styles.textInput}>Add products</Text>
+                  <MaterialCommunityIcons name={productDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color="#666" />
+                </TouchableOpacity>
+                
+                {productDropdownOpen && (
+                  <View style={styles.dropdownList}>
+                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                      {products.map((product) => (
+                        <TouchableOpacity
+                          key={product._id}
+                          style={styles.dropdownItem}
+                          onPress={() => addOrderItem(product)}
+                        >
+                          <Text style={styles.dropdownItemText}>{product.name}</Text>
+                          <Text style={styles.dropdownItemSubtext}>SKU: {product.sku} • {product.unit}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
+                {/* Order Items */}
+                {orderItems.map((item, index) => (
+                  <View key={item.item_id} style={styles.itemRow}>
+                    <View style={styles.itemInfo}>
+                      <Text style={styles.itemName}>{item.itemName} • {item.sku} • {item.unit}</Text>
+                    </View>
+                    <View style={styles.qtyInputWrap}>
+                      <TextInput 
+                        value={String(item.quantity || '')} 
+                        onChangeText={(t) => updateOrderItemQty(index, t)} 
+                        style={styles.qtyInput} 
+                        keyboardType="number-pad" 
+                      />
+                    </View>
+                    <TouchableOpacity style={styles.itemDeleteBtn} onPress={() => removeOrderItem(index)}>
+                      <MaterialCommunityIcons name="trash-can-outline" size={18} color="#ff3b30" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+
+                {/* Notes */}
+                <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                <View style={styles.notesWrap}>
+                  <TextInput 
+                    value={orderNotes} 
+                    onChangeText={setOrderNotes} 
+                    placeholder="Add notes..." 
+                    placeholderTextColor="#999" 
+                    multiline 
+                    style={styles.notesInput} 
+                  />
+                </View>
+              </ScrollView>
+            )}
+
+            <View style={styles.editFooter}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setCreateOrderModal(false)}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.updateBtn} onPress={submitCreateOrder} disabled={creatingOrder || loadingDropdowns}>
+                {creatingOrder ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.updateBtnText}>Create Order</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -493,4 +789,8 @@ const styles = StyleSheet.create({
   editFooter: { borderTopWidth: 1, borderTopColor: '#eee', padding: 12, flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   updateBtn: { height: 40, borderRadius: 12, backgroundColor: '#2453e6', paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center' },
   updateBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.white },
+  dropdownList: { backgroundColor: COLORS.white, borderRadius: 12, borderWidth: 1, borderColor: '#dcdcdc', marginTop: 4, marginBottom: 8, overflow: 'hidden' },
+  dropdownItem: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  dropdownItemText: { fontSize: 16, color: '#111' },
+  dropdownItemSubtext: { fontSize: 13, color: '#666', marginTop: 2 },
 });
