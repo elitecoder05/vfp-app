@@ -339,6 +339,63 @@ export const deleteProduct = async (productId) => {
   }
 };
 
+// Get Inventory API method
+export const getInventory = async (page = 1, limit = 10) => {
+  const endpoint = '/inventory';
+  const params = { page, limit };
+  logApiCall({ name: 'getInventory', method: 'GET', url: endpoint, params });
+  try {
+    const response = await axiosInstance.get(endpoint, { params });
+    logApiSuccess({ name: 'getInventory', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'getInventory', error });
+    throw error;
+  }
+};
+
+// Create Inventory API method
+export const createInventory = async (payload) => {
+  const endpoint = '/inventory';
+  logApiCall({ name: 'createInventory', method: 'POST', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.post(endpoint, payload);
+    logApiSuccess({ name: 'createInventory', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'createInventory', error });
+    throw error;
+  }
+};
+
+// Update Inventory API method
+export const updateInventory = async (inventoryId, payload) => {
+  const endpoint = `/inventory/${inventoryId}`;
+  logApiCall({ name: 'updateInventory', method: 'PUT', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.put(endpoint, payload);
+    logApiSuccess({ name: 'updateInventory', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'updateInventory', error });
+    throw error;
+  }
+};
+
+// Delete Inventory API method
+export const deleteInventory = async (inventoryId) => {
+  const endpoint = `/inventory/${inventoryId}`;
+  logApiCall({ name: 'deleteInventory', method: 'DELETE', url: endpoint });
+  try {
+    const response = await axiosInstance.delete(endpoint);
+    logApiSuccess({ name: 'deleteInventory', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'deleteInventory', error });
+    throw error;
+  }
+};
+
 
 
 

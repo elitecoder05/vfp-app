@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -12,364 +14,45 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { createInventory, deleteInventory, getInventory, updateInventory } from '../api/api-methods';
 import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
 
 const PAGE_SIZE = 10;
 const ITEM_TYPES = ['Product', 'Raw Material'];
 
-const INVENTORY_ROWS = [
-  {
-    id: '1',
-    warehouseId: '6971d565cebe6ab0e3c64a5f',
-    warehouse: 'Warehouse 1',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a78',
-    itemName: 'Product 5',
-    itemCode: 'PROD0005',
-    stock: 476,
-    reserved: 20,
-    minStock: 11,
-    maxStock: 207,
-  },
-  {
-    id: '2',
-    warehouseId: '6971d565cebe6ab0e3c64a60',
-    warehouse: 'Warehouse 2',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a79',
-    itemName: 'Product 11',
-    itemCode: 'PROD0011',
-    stock: 300,
-    reserved: 49,
-    minStock: 20,
-    maxStock: 360,
-  },
-  {
-    id: '3',
-    warehouseId: '6971d565cebe6ab0e3c64a61',
-    warehouse: 'Warehouse 2',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a80',
-    itemName: 'Product 16',
-    itemCode: 'PROD0016',
-    stock: 490,
-    reserved: 16,
-    minStock: 40,
-    maxStock: 550,
-  },
-  {
-    id: '4',
-    warehouseId: '6971d565cebe6ab0e3c64a62',
-    warehouse: 'Warehouse 3',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a81',
-    itemName: 'Product 10',
-    itemCode: 'PROD0010',
-    stock: 227,
-    reserved: 34,
-    minStock: 60,
-    maxStock: 300,
-  },
-  {
-    id: '5',
-    warehouseId: '6971d565cebe6ab0e3c64a63',
-    warehouse: 'Warehouse 3',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a82',
-    itemName: 'Product 19',
-    itemCode: 'PROD0019',
-    stock: 555,
-    reserved: 1,
-    minStock: 25,
-    maxStock: 650,
-  },
-  {
-    id: '6',
-    warehouseId: '6971d565cebe6ab0e3c64a64',
-    warehouse: 'Warehouse 4',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a83',
-    itemName: 'Raw Material 15',
-    itemCode: 'RM0004',
-    stock: 784,
-    reserved: 34,
-    minStock: 120,
-    maxStock: 920,
-  },
-  {
-    id: '7',
-    warehouseId: '6971d565cebe6ab0e3c64a65',
-    warehouse: 'Warehouse 4',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a84',
-    itemName: 'Raw Material 19',
-    itemCode: 'RM0001',
-    stock: 150,
-    reserved: 18,
-    minStock: 120,
-    maxStock: 350,
-  },
-  {
-    id: '8',
-    warehouseId: '6971d565cebe6ab0e3c64a66',
-    warehouse: 'Warehouse 4',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a85',
-    itemName: 'Raw Material 6',
-    itemCode: 'RM0003',
-    stock: 616,
-    reserved: 10,
-    minStock: 100,
-    maxStock: 800,
-  },
-  {
-    id: '9',
-    warehouseId: '6971d565cebe6ab0e3c64a67',
-    warehouse: 'Warehouse 5',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a86',
-    itemName: 'Product 14',
-    itemCode: 'PROD0014',
-    stock: 922,
-    reserved: 24,
-    minStock: 150,
-    maxStock: 1000,
-  },
-  {
-    id: '10',
-    warehouseId: '6971d565cebe6ab0e3c64a68',
-    warehouse: 'Warehouse 6',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a87',
-    itemName: 'Product 18',
-    itemCode: 'PROD0018',
-    stock: 492,
-    reserved: 37,
-    minStock: 85,
-    maxStock: 700,
-  },
-  {
-    id: '11',
-    warehouseId: '6971d565cebe6ab0e3c64a69',
-    warehouse: 'Warehouse 1',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a88',
-    itemName: 'Product 2',
-    itemCode: 'PROD0002',
-    stock: 328,
-    reserved: 22,
-    minStock: 330,
-    maxStock: 500,
-  },
-  {
-    id: '12',
-    warehouseId: '6971d565cebe6ab0e3c64a6a',
-    warehouse: 'Warehouse 2',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a89',
-    itemName: 'Product 7',
-    itemCode: 'PROD0007',
-    stock: 411,
-    reserved: 40,
-    minStock: 100,
-    maxStock: 560,
-  },
-  {
-    id: '13',
-    warehouseId: '6971d565cebe6ab0e3c64a6b',
-    warehouse: 'Warehouse 3',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a8a',
-    itemName: 'Product 12',
-    itemCode: 'PROD0012',
-    stock: 205,
-    reserved: 15,
-    minStock: 50,
-    maxStock: 320,
-  },
-  {
-    id: '14',
-    warehouseId: '6971d565cebe6ab0e3c64a6c',
-    warehouse: 'Warehouse 4',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a8b',
-    itemName: 'Raw Material 3',
-    itemCode: 'RM0002',
-    stock: 120,
-    reserved: 30,
-    minStock: 140,
-    maxStock: 300,
-  },
-  {
-    id: '15',
-    warehouseId: '6971d565cebe6ab0e3c64a6d',
-    warehouse: 'Warehouse 5',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a8c',
-    itemName: 'Product 1',
-    itemCode: 'PROD0001',
-    stock: 700,
-    reserved: 60,
-    minStock: 90,
-    maxStock: 900,
-  },
-  {
-    id: '16',
-    warehouseId: '6971d565cebe6ab0e3c64a6e',
-    warehouse: 'Warehouse 5',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a8d',
-    itemName: 'Product 8',
-    itemCode: 'PROD0008',
-    stock: 270,
-    reserved: 20,
-    minStock: 70,
-    maxStock: 380,
-  },
-  {
-    id: '17',
-    warehouseId: '6971d565cebe6ab0e3c64a6f',
-    warehouse: 'Warehouse 6',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a8e',
-    itemName: 'Product 20',
-    itemCode: 'PROD0020',
-    stock: 680,
-    reserved: 42,
-    minStock: 100,
-    maxStock: 880,
-  },
-  {
-    id: '18',
-    warehouseId: '6971d565cebe6ab0e3c64a70',
-    warehouse: 'Warehouse 1',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a8f',
-    itemName: 'Product 3',
-    itemCode: 'PROD0003',
-    stock: 190,
-    reserved: 25,
-    minStock: 220,
-    maxStock: 420,
-  },
-  {
-    id: '19',
-    warehouseId: '6971d565cebe6ab0e3c64a71',
-    warehouse: 'Warehouse 2',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a90',
-    itemName: 'Product 9',
-    itemCode: 'PROD0009',
-    stock: 350,
-    reserved: 26,
-    minStock: 80,
-    maxStock: 520,
-  },
-  {
-    id: '20',
-    warehouseId: '6971d565cebe6ab0e3c64a72',
-    warehouse: 'Warehouse 3',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a91',
-    itemName: 'Product 13',
-    itemCode: 'PROD0013',
-    stock: 560,
-    reserved: 31,
-    minStock: 70,
-    maxStock: 740,
-  },
-  {
-    id: '21',
-    warehouseId: '6971d565cebe6ab0e3c64a73',
-    warehouse: 'Warehouse 4',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a92',
-    itemName: 'Product 15',
-    itemCode: 'PROD0015',
-    stock: 625,
-    reserved: 17,
-    minStock: 95,
-    maxStock: 780,
-  },
-  {
-    id: '22',
-    warehouseId: '6971d565cebe6ab0e3c64a74',
-    warehouse: 'Warehouse 5',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a93',
-    itemName: 'Product 4',
-    itemCode: 'PROD0004',
-    stock: 445,
-    reserved: 19,
-    minStock: 60,
-    maxStock: 540,
-  },
-  {
-    id: '23',
-    warehouseId: '6971d565cebe6ab0e3c64a75',
-    warehouse: 'Warehouse 5',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a94',
-    itemName: 'Product 6',
-    itemCode: 'PROD0006',
-    stock: 530,
-    reserved: 24,
-    minStock: 75,
-    maxStock: 690,
-  },
-  {
-    id: '24',
-    warehouseId: '6971d565cebe6ab0e3c64a76',
-    warehouse: 'Warehouse 6',
-    itemType: 'Product',
-    itemId: '6971d565cebe6ab0e3c64a95',
-    itemName: 'Product 17',
-    itemCode: 'PROD0017',
-    stock: 610,
-    reserved: 33,
-    minStock: 110,
-    maxStock: 820,
-  },
-  {
-    id: '25',
-    warehouseId: '6971d565cebe6ab0e3c64a77',
-    warehouse: 'Warehouse 1',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a96',
-    itemName: 'Raw Material 1',
-    itemCode: 'RM0005',
-    stock: 230,
-    reserved: 12,
-    minStock: 45,
-    maxStock: 320,
-  },
-  {
-    id: '26',
-    warehouseId: '6971d565cebe6ab0e3c64a97',
-    warehouse: 'Warehouse 2',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a98',
-    itemName: 'Raw Material 7',
-    itemCode: 'RM0006',
-    stock: 140,
-    reserved: 18,
-    minStock: 160,
-    maxStock: 260,
-  },
-  {
-    id: '27',
-    warehouseId: '6971d565cebe6ab0e3c64a99',
-    warehouse: 'Warehouse 3',
-    itemType: 'Raw Material',
-    itemId: '6971d565cebe6ab0e3c64a9a',
-    itemName: 'Raw Material 2',
-    itemCode: 'RM0007',
-    stock: 380,
-    reserved: 20,
-    minStock: 70,
-    maxStock: 500,
-  },
-];
+const toTitleCase = (value = '') =>
+  value
+    .toString()
+    .split('_')
+    .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : ''))
+    .join(' ');
+
+const mapInventoryItem = (row) => ({
+  id: row._id,
+  warehouseId: row.warehouse_id?._id || '',
+  warehouse: row.warehouse_id?.name || 'N/A',
+  itemType: toTitleCase(row.item_type),
+  itemId: row.item_id || '',
+  itemName: row.itemName || 'N/A',
+  itemCode: row.sku || 'N/A',
+  unit: row.unit || '',
+  stock: Number(row.stock_quantity || 0),
+  reserved: Number(row.reserved_quantity || 0),
+  minStock: Number(row.min_stock_level || 0),
+  maxStock: Number(row.max_stock_level || 0),
+});
+
+const toInventoryPayload = (form) => ({
+  warehouse_id: form.warehouseId.trim(),
+  item_type: form.itemType.toLowerCase().replace(' ', '_'),
+  item_id: form.itemId.trim(),
+  itemName: form.itemName.trim(),
+  sku: form.itemCode.trim().toUpperCase(),
+  stock_quantity: Number(form.stock || 0),
+  reserved_quantity: Number(form.reserved || 0),
+  min_stock_level: Number(form.minStock || 0),
+  max_stock_level: Number(form.maxStock || 0),
+});
 
 const EMPTY_FORM = {
   warehouseId: '',
@@ -406,6 +89,7 @@ function InventoryFormModal({
   primaryLabel,
   onPrimaryPress,
   onClose,
+  submitting,
   compact,
 }) {
   const [showItemTypeOptions, setShowItemTypeOptions] = useState(false);
@@ -536,10 +220,15 @@ function InventoryFormModal({
       </ScrollView>
 
       <View style={styles.formModalFooter}>
-        <TouchableOpacity style={styles.primaryBtn} onPress={onPrimaryPress} activeOpacity={0.85}>
-          <Text style={styles.primaryBtnText}>{primaryLabel}</Text>
+        <TouchableOpacity
+          style={[styles.primaryBtn, submitting && styles.primaryBtnDisabled]}
+          onPress={onPrimaryPress}
+          activeOpacity={0.85}
+          disabled={submitting}
+        >
+          {submitting ? <ActivityIndicator size="small" color="#ffffff" /> : <Text style={styles.primaryBtnText}>{primaryLabel}</Text>}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={onClose} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={onClose} activeOpacity={0.85} disabled={submitting}>
           <Text style={styles.secondaryBtnText}>Cancel</Text>
         </TouchableOpacity>
       </View>
@@ -551,8 +240,16 @@ export default function WarehouseInventoryScreen() {
   const { width } = useWindowDimensions();
   const compact = width < 700;
 
-  const [inventoryRows, setInventoryRows] = useState(INVENTORY_ROWS);
+  const [inventoryRows, setInventoryRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [updatingStockId, setUpdatingStockId] = useState('');
+  const [deletingId, setDeletingId] = useState('');
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -562,12 +259,40 @@ export default function WarehouseInventoryScreen() {
   const [addForm, setAddForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
 
-  const totalPages = Math.max(1, Math.ceil(inventoryRows.length / PAGE_SIZE));
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = useMemo(() => inventoryRows.slice(pageStart, pageStart + PAGE_SIZE), [inventoryRows, pageStart]);
+  const pageRows = useMemo(() => inventoryRows, [inventoryRows]);
 
-  const showingStart = pageRows.length ? pageStart + 1 : 0;
-  const showingEnd = Math.min(pageStart + PAGE_SIZE, inventoryRows.length);
+  const showingStart = pageRows.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0;
+  const showingEnd = pageRows.length ? showingStart + pageRows.length - 1 : 0;
+
+  const fetchInventory = async (page = currentPage) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await getInventory(page, PAGE_SIZE);
+      setInventoryRows((response.data || []).map(mapInventoryItem));
+      setCurrentPage(response.pagination?.currentPage || page);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalItems(response.pagination?.totalItems || 0);
+    } catch (err) {
+      console.error('Error fetching inventory:', err);
+      setError('Failed to fetch inventory');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory(currentPage);
+  }, [currentPage]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchInventory(currentPage);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const validateForm = (form) => {
     if (!form.warehouseId.trim()) {
@@ -602,40 +327,26 @@ export default function WarehouseInventoryScreen() {
     return true;
   };
 
-  const buildRowFromForm = (form, existing = null) => {
-    const stock = Number(form.stock || 0);
-    const minStock = Number(form.minStock || 0);
-    const maxStock = Number(form.maxStock || 0);
-    const reserved = existing ? existing.reserved : 0;
-
-    return {
-      id: existing ? existing.id : String(Date.now()),
-      warehouseId: form.warehouseId.trim(),
-      warehouse: form.warehouse.trim(),
-      itemType: form.itemType,
-      itemId: form.itemId.trim(),
-      itemName: form.itemName.trim(),
-      itemCode: form.itemCode.trim().toUpperCase(),
-      stock,
-      reserved,
-      minStock,
-      maxStock,
-    };
-  };
-
   const openAdd = () => {
-    setAddForm(EMPTY_FORM);
+    setAddForm({ ...EMPTY_FORM });
     setShowAddModal(true);
   };
 
-  const submitAdd = () => {
+  const submitAdd = async () => {
     if (!validateForm(addForm)) return;
 
-    const newRow = buildRowFromForm(addForm);
-    setInventoryRows((current) => [newRow, ...current]);
-    setCurrentPage(1);
-    setShowAddModal(false);
-    Alert.alert('Success', 'Inventory entry added successfully');
+    try {
+      setSubmitting(true);
+      await createInventory(toInventoryPayload(addForm));
+      setShowAddModal(false);
+      setCurrentPage(1);
+      await fetchInventory(1);
+      Alert.alert('Success', 'Inventory entry added successfully');
+    } catch (err) {
+      Alert.alert('Create Failed', err.response?.data?.message || 'Unable to create inventory entry');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openEdit = (item) => {
@@ -655,15 +366,24 @@ export default function WarehouseInventoryScreen() {
     setShowEditModal(true);
   };
 
-  const submitEdit = () => {
+  const submitEdit = async () => {
     if (!selectedItem) return;
     if (!validateForm(editForm)) return;
 
-    const updatedRow = buildRowFromForm(editForm, selectedItem);
-    setInventoryRows((current) => current.map((item) => (item.id === selectedItem.id ? updatedRow : item)));
-    setShowEditModal(false);
-    setSelectedItem(null);
-    Alert.alert('Success', 'Inventory entry updated successfully');
+    try {
+      setSubmitting(true);
+      const updated = await updateInventory(selectedItem.id, toInventoryPayload(editForm));
+      setInventoryRows((current) =>
+        current.map((item) => (item.id === selectedItem.id ? mapInventoryItem(updated) : item))
+      );
+      setShowEditModal(false);
+      setSelectedItem(null);
+      Alert.alert('Success', 'Inventory entry updated successfully');
+    } catch (err) {
+      Alert.alert('Update Failed', err.response?.data?.message || 'Unable to update inventory entry');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openDelete = (item) => {
@@ -671,19 +391,40 @@ export default function WarehouseInventoryScreen() {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!selectedItem) return;
 
-    setInventoryRows((current) => {
-      const nextRows = current.filter((item) => item.id !== selectedItem.id);
-      const nextPages = Math.max(1, Math.ceil(nextRows.length / PAGE_SIZE));
-      setCurrentPage((page) => Math.min(page, nextPages));
-      return nextRows;
-    });
+    try {
+      setDeletingId(selectedItem.id);
+      await deleteInventory(selectedItem.id);
+      setShowDeleteModal(false);
+      setSelectedItem(null);
 
-    setShowDeleteModal(false);
-    setSelectedItem(null);
-    Alert.alert('Success', 'Inventory entry deleted successfully');
+      const hasSingleItemOnPage = inventoryRows.length === 1;
+      const nextPage = hasSingleItemOnPage && currentPage > 1 ? currentPage - 1 : currentPage;
+      setCurrentPage(nextPage);
+      await fetchInventory(nextPage);
+      Alert.alert('Success', 'Inventory entry deleted successfully');
+    } catch (err) {
+      Alert.alert('Delete Failed', err.response?.data?.message || 'Unable to delete inventory entry');
+    } finally {
+      setDeletingId('');
+    }
+  };
+
+  const increaseStock = async (item) => {
+    const nextStock = Number(item.stock || 0) + 1;
+    try {
+      setUpdatingStockId(item.id);
+      const updated = await updateInventory(item.id, { stock_quantity: nextStock });
+      setInventoryRows((current) =>
+        current.map((row) => (row.id === item.id ? mapInventoryItem(updated) : row))
+      );
+    } catch (err) {
+      Alert.alert('Update Failed', err.response?.data?.message || 'Unable to increase stock quantity');
+    } finally {
+      setUpdatingStockId('');
+    }
   };
 
   return (
@@ -700,7 +441,18 @@ export default function WarehouseInventoryScreen() {
         </View>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2453e6']}
+            tintColor="#2453e6"
+          />
+        }
+      >
         <View style={styles.innerContent}>
           <View style={styles.titleRow}>
             <View style={styles.titleGroup}>
@@ -713,85 +465,117 @@ export default function WarehouseInventoryScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.cardList}>
-            {pageRows.map((row) => {
-              const available = Math.max(0, row.stock - row.reserved);
-
-              return (
-                <View key={row.id} style={styles.card}>
-                  <View style={styles.cardTopRow}>
-                    <View style={styles.cardTopLeft}>
-                      <Text style={styles.rowWarehouse}>{row.warehouse}</Text>
-                      <Text style={styles.itemType}>{row.itemType}</Text>
-                    </View>
-                    <StatusBadge stock={row.stock} minStock={row.minStock} />
-                  </View>
-
-                  <Text style={styles.rowItemName}>{row.itemName}</Text>
-                  <Text style={styles.rowItemCode}>{row.itemCode}</Text>
-
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statChip}>
-                      <Text style={styles.statLabel}>Stock</Text>
-                      <Text style={styles.statValue}>{row.stock}</Text>
-                    </View>
-                    <View style={styles.statChip}>
-                      <Text style={styles.statLabel}>Reserved</Text>
-                      <Text style={styles.statValue}>{row.reserved}</Text>
-                    </View>
-                    <View style={styles.statChip}>
-                      <Text style={styles.statLabel}>Available</Text>
-                      <Text style={styles.statValue}>{available}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openEdit(row)}>
-                      <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
-                      <MaterialCommunityIcons name="chart-line" size={16} color="#1db954" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openDelete(row)}>
-                      <MaterialCommunityIcons name="trash-can-outline" size={16} color="#ff3b30" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-
-          <Text style={styles.paginationSummary}>
-            Showing {showingStart} to {showingEnd} of {inventoryRows.length} inventories
-          </Text>
-
-          <View style={styles.paginationRow}>
-            <TouchableOpacity
-              style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
-              onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              disabled={currentPage === 1}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
-                Previous
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.pageIndicator}>
-              <Text style={styles.pageIndicatorText}>Page {currentPage} of {totalPages}</Text>
+          {loading ? (
+            <View style={styles.stateBox}>
+              <ActivityIndicator size="large" color="#2453e6" />
+              <Text style={styles.stateText}>Loading inventory...</Text>
             </View>
+          ) : error ? (
+            <View style={styles.stateBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={40} color="#e53935" />
+              <Text style={styles.stateText}>{error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={() => fetchInventory(currentPage)}>
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : pageRows.length === 0 ? (
+            <View style={styles.stateBox}>
+              <MaterialCommunityIcons name="view-grid-outline" size={40} color="#9e9e9e" />
+              <Text style={styles.stateText}>No inventory found</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.cardList}>
+                {pageRows.map((row) => {
+                  const available = Math.max(0, row.stock - row.reserved);
+                  const stockUpdating = updatingStockId === row.id;
 
-            <TouchableOpacity
-              style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
-              onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-              disabled={currentPage === totalPages}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.paginationButtonText, currentPage === totalPages && styles.paginationButtonTextDisabled]}>
-                Next
+                  return (
+                    <View key={row.id} style={styles.card}>
+                      <View style={styles.cardTopRow}>
+                        <View style={styles.cardTopLeft}>
+                          <Text style={styles.rowWarehouse}>{row.warehouse}</Text>
+                          <Text style={styles.itemType}>{row.itemType}</Text>
+                        </View>
+                        <StatusBadge stock={row.stock} minStock={row.minStock} />
+                      </View>
+
+                      <Text style={styles.rowItemName}>{row.itemName}</Text>
+                      <Text style={styles.rowItemCode}>{row.itemCode}</Text>
+
+                      <View style={styles.statsGrid}>
+                        <View style={styles.statChip}>
+                          <Text style={styles.statLabel}>Stock</Text>
+                          <Text style={styles.statValue}>{row.stock}</Text>
+                        </View>
+                        <View style={styles.statChip}>
+                          <Text style={styles.statLabel}>Reserved</Text>
+                          <Text style={styles.statValue}>{row.reserved}</Text>
+                        </View>
+                        <View style={styles.statChip}>
+                          <Text style={styles.statLabel}>Available</Text>
+                          <Text style={styles.statValue}>{available}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openEdit(row)}>
+                          <MaterialCommunityIcons name="pencil-outline" size={16} color="#555" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.iconBtn, stockUpdating && styles.iconBtnDisabled]}
+                          activeOpacity={0.7}
+                          onPress={() => increaseStock(row)}
+                          disabled={stockUpdating}
+                        >
+                          {stockUpdating ? (
+                            <ActivityIndicator size="small" color="#1db954" />
+                          ) : (
+                            <MaterialCommunityIcons name="chart-line" size={16} color="#1db954" />
+                          )}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => openDelete(row)}>
+                          <MaterialCommunityIcons name="trash-can-outline" size={16} color="#ff3b30" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.paginationSummary}>
+                Showing {showingStart} to {showingEnd} of {totalItems} inventories
               </Text>
-            </TouchableOpacity>
-          </View>
+
+              <View style={styles.paginationRow}>
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
+                    Previous
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={styles.pageIndicator}>
+                  <Text style={styles.pageIndicatorText}>Page {currentPage} of {totalPages}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                  onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.paginationButtonText, currentPage === totalPages && styles.paginationButtonTextDisabled]}>
+                    Next
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -801,7 +585,7 @@ export default function WarehouseInventoryScreen() {
         animationType="fade"
         presentationStyle="overFullScreen"
         statusBarTranslucent
-        onRequestClose={() => setShowAddModal(false)}
+        onRequestClose={() => !submitting && setShowAddModal(false)}
       >
         <View style={styles.modalBackdrop}>
           <InventoryFormModal
@@ -810,7 +594,8 @@ export default function WarehouseInventoryScreen() {
             setForm={setAddForm}
             primaryLabel="Add Inventory"
             onPrimaryPress={submitAdd}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => !submitting && setShowAddModal(false)}
+            submitting={submitting}
             compact={compact}
           />
         </View>
@@ -822,7 +607,7 @@ export default function WarehouseInventoryScreen() {
         animationType="fade"
         presentationStyle="overFullScreen"
         statusBarTranslucent
-        onRequestClose={() => setShowEditModal(false)}
+        onRequestClose={() => !submitting && setShowEditModal(false)}
       >
         <View style={styles.modalBackdrop}>
           <InventoryFormModal
@@ -831,7 +616,8 @@ export default function WarehouseInventoryScreen() {
             setForm={setEditForm}
             primaryLabel="Update Inventory"
             onPrimaryPress={submitEdit}
-            onClose={() => setShowEditModal(false)}
+            onClose={() => !submitting && setShowEditModal(false)}
+            submitting={submitting}
             compact={compact}
           />
         </View>
@@ -857,11 +643,11 @@ export default function WarehouseInventoryScreen() {
               </Text>
             </View>
             <View style={styles.deleteActions}>
-              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowDeleteModal(false)}>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setShowDeleteModal(false)} disabled={!!deletingId}>
                 <Text style={styles.secondaryBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete}>
-                <Text style={styles.deleteBtnText}>Delete</Text>
+              <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete} disabled={!!deletingId}>
+                {deletingId ? <ActivityIndicator size="small" color="#f04438" /> : <Text style={styles.deleteBtnText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -905,6 +691,27 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   addButtonText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
+  stateBox: {
+    minHeight: 180,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    backgroundColor: COLORS.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 10,
+  },
+  stateText: { fontSize: 14, color: '#555', textAlign: 'center' },
+  retryBtn: {
+    minHeight: 34,
+    borderRadius: 8,
+    backgroundColor: '#2453e6',
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryBtnText: { fontSize: 13, fontWeight: '600', color: COLORS.white },
   cardList: { gap: 10 },
   card: {
     backgroundColor: COLORS.white,
@@ -946,6 +753,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconBtnDisabled: { opacity: 0.7 },
   paginationSummary: { marginTop: 24, fontSize: 14, color: '#6d6d6d' },
   paginationRow: { marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   paginationButton: {
@@ -1082,6 +890,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  primaryBtnDisabled: { opacity: 0.85 },
   primaryBtnText: { fontSize: 16, fontWeight: '700', color: '#ffffff' },
   secondaryBtn: {
     minHeight: 44,
