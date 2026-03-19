@@ -20,6 +20,7 @@ import WarehouseInventoryScreen from './screens/WarehouseInventoryScreen';
 import WarehouseMasterScreen from './screens/WarehouseMasterScreen';
 import UserManagementScreen from './screens/UserManagementScreen';
 import RawMaterialsScreen from './screens/RawMaterialsScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -92,6 +93,10 @@ function RootNavigator() {
             <Stack.Screen
               name="RawMaterials"
               component={RawMaterialsScreen}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
             />
           </>
         ) : (

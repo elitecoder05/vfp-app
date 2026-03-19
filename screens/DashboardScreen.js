@@ -53,6 +53,12 @@ export default function DashboardScreen({ navigation }) {
       icon: 'package-variant-closed',
       screen: 'RawMaterials',
     },
+    {
+      title: 'Profile',
+      description: 'Update your personal information and account password.',
+      icon: 'account-circle-outline',
+      screen: 'Profile',
+    },
   ];
 
   const handleModulePress = (screen) => {

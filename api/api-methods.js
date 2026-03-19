@@ -396,6 +396,92 @@ export const deleteInventory = async (inventoryId) => {
   }
 };
 
+// Get Warehouses API method
+export const getWarehouses = async (page = 1, limit = 10) => {
+  const endpoint = '/warehouses';
+  const params = { page, limit };
+  logApiCall({ name: 'getWarehouses', method: 'GET', url: endpoint, params });
+  try {
+    const response = await axiosInstance.get(endpoint, { params });
+    logApiSuccess({ name: 'getWarehouses', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'getWarehouses', error });
+    throw error;
+  }
+};
+
+// Create Warehouse API method
+export const createWarehouse = async (payload) => {
+  const endpoint = '/warehouses';
+  logApiCall({ name: 'createWarehouse', method: 'POST', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.post(endpoint, payload);
+    logApiSuccess({ name: 'createWarehouse', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'createWarehouse', error });
+    throw error;
+  }
+};
+
+// Update Warehouse API method
+export const updateWarehouse = async (warehouseId, payload) => {
+  const endpoint = `/warehouses/${warehouseId}`;
+  logApiCall({ name: 'updateWarehouse', method: 'PUT', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.put(endpoint, payload);
+    logApiSuccess({ name: 'updateWarehouse', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'updateWarehouse', error });
+    throw error;
+  }
+};
+
+// Delete Warehouse API method
+export const deleteWarehouse = async (warehouseId) => {
+  const endpoint = `/warehouses/${warehouseId}`;
+  logApiCall({ name: 'deleteWarehouse', method: 'DELETE', url: endpoint });
+  try {
+    const response = await axiosInstance.delete(endpoint);
+    logApiSuccess({ name: 'deleteWarehouse', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'deleteWarehouse', error });
+    throw error;
+  }
+};
+
+// Get Users API method
+export const getUsers = async (page = 1, limit = 10) => {
+  const endpoint = '/users';
+  const params = { page, limit };
+  logApiCall({ name: 'getUsers', method: 'GET', url: endpoint, params });
+  try {
+    const response = await axiosInstance.get(endpoint, { params });
+    logApiSuccess({ name: 'getUsers', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'getUsers', error });
+    throw error;
+  }
+};
+
+// Update User API method
+export const updateUser = async (userId, payload) => {
+  const endpoint = `/users/${userId}`;
+  logApiCall({ name: 'updateUser', method: 'PUT', url: endpoint, payload });
+  try {
+    const response = await axiosInstance.put(endpoint, payload);
+    logApiSuccess({ name: 'updateUser', status: response.status, data: response.data });
+    return response.data;
+  } catch (error) {
+    logApiError({ name: 'updateUser', error });
+    throw error;
+  }
+};
+
 
 
 

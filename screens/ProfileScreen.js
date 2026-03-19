@@ -1,15 +1,67 @@
-import React, { useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useSelector } from 'react-redux';
+import { updateUser } from '../api/api-methods';
 import { BORDER_RADIUS, COLORS, SPACING } from '../constants/theme';
+import { selectCurrentUser } from '../store/authSlice';
 
 export default function ProfileScreen() {
-  const [name, setName] = useState('Admin User');
-  const [phone, setPhone] = useState('1234567890');
+  const currentUser = useSelector(selectCurrentUser);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setName(currentUser?.name || 'Admin User');
+    setPhone(currentUser?.phone || currentUser?.mobile || '');
+  }, [currentUser]);
+
+  const onSubmit = async () => {
+    const userId = currentUser?._id || currentUser?.id;
+    if (!userId) {
+      Alert.alert('Error', 'User session is missing. Please login again.');
+      return;
+    }
+    if (!name.trim()) {
+      Alert.alert('Validation Error', 'Name is required');
+      return;
+    }
+    if (!phone.trim()) {
+      Alert.alert('Validation Error', 'Phone number is required');
+      return;
+    }
+
+    const payload = {
+      name: name.trim(),
+      phone: phone.trim(),
+    };
+    if (password.trim()) {
+      payload.password = password.trim();
+    }
+
+    try {
+      setSaving(true);
+      await updateUser(userId, payload);
+      setPassword('');
+      Alert.alert('Success', 'Profile updated successfully');
+    } catch (err) {
+      Alert.alert('Update Failed', err.response?.data?.message || 'Unable to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <View style={styles.headerTitleRow}>
+          <MaterialCommunityIcons name="badge-account-outline" size={20} color={COLORS.textPrimary} style={styles.headerIcon} />
+          <Text style={styles.headerTitle}>Profile</Text>
+        </View>
+      </View>
+
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContent}>
           <View style={styles.formCard}>
@@ -25,7 +77,15 @@ export default function ProfileScreen() {
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.inputWrap}>
               <MaterialCommunityIcons name="phone-outline" size={22} color="#7c7c7c" style={styles.inputIcon} />
-              <TextInput value={phone} onChangeText={setPhone} style={styles.input} keyboardType="phone-pad" placeholder="Enter phone number" placeholderTextColor="#9a9a9a" />
+              <TextInput
+                value={phone}
+                onChangeText={(value) => setPhone(value.replace(/[^0-9]/g, ''))}
+                style={styles.input}
+                keyboardType="phone-pad"
+                placeholder="Enter phone number"
+                placeholderTextColor="#9a9a9a"
+                maxLength={10}
+              />
             </View>
 
             <Text style={styles.label}>New Password (optional)</Text>
@@ -34,8 +94,8 @@ export default function ProfileScreen() {
               <TextInput value={password} onChangeText={setPassword} style={styles.input} secureTextEntry placeholder="Enter new password (leave blank to keep current)" placeholderTextColor="#9a9a9a" />
             </View>
 
-            <TouchableOpacity style={styles.submitButton} activeOpacity={0.85}>
-              <Text style={styles.submitButtonText}>Update Profile</Text>
+            <TouchableOpacity style={[styles.submitButton, saving && styles.submitButtonDisabled]} activeOpacity={0.85} onPress={onSubmit} disabled={saving}>
+              {saving ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.submitButtonText}>Update Profile</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -46,9 +106,27 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.white },
+  header: {
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.lg,
+    backgroundColor: COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray200,
+  },
+  headerTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  headerIcon: { marginRight: SPACING.md },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.textPrimary },
   content: { flex: 1, backgroundColor: '#fcfcfa' },
-  innerContent: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 40 },
-  formCard: { backgroundColor: COLORS.white, borderRadius: BORDER_RADIUS.xl, borderWidth: 1, borderColor: COLORS.gray200, padding: 16 },
+  innerContent: { paddingHorizontal: 16, paddingTop: 22, paddingBottom: 40, alignItems: 'center' },
+  formCard: {
+    width: '100%',
+    maxWidth: 820,
+    backgroundColor: COLORS.white,
+    borderRadius: BORDER_RADIUS.xl,
+    borderWidth: 1,
+    borderColor: COLORS.gray200,
+    padding: 18,
+  },
   cardTitle: { fontSize: 22, fontWeight: '700', color: '#171717' },
   cardSubtitle: { marginTop: 6, marginBottom: 22, fontSize: 14, color: '#6d6d6d', lineHeight: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#222', marginBottom: 8, marginTop: 6 },
@@ -56,5 +134,6 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   input: { flex: 1, fontSize: 16, color: '#171717', paddingVertical: 12 },
   submitButton: { alignSelf: 'flex-start', height: 42, borderRadius: 12, backgroundColor: '#2453e6', paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  submitButtonDisabled: { opacity: 0.85 },
   submitButtonText: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
 });
